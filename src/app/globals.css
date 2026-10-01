@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Palette provisoire (placeholders d'identité) : crème, brun chaud, vert sauge.
+   Contrastes vérifiés pour WCAG AA sur fond crème. */
+@theme {
+  --color-cream: #f7f3ec;
+  --color-ink: #2b2420;
+  --color-cocoa: #6b4a35;
+  --color-sage: #5f7360;
+  --font-serif: var(--font-serif), Georgia, serif;
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+}

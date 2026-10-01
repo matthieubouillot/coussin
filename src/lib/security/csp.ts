@@ -1,0 +1,40 @@
+/**
+ * Construction de la Content-Security-Policy.
+ *
+ * Fonction pure (testée) appelée par `src/proxy.ts` à chaque requête avec un nonce neuf.
+ * Chaque service tiers ajouté dans les phases suivantes (Stripe, Turnstile, TikTok…)
+ * doit être déclaré ici explicitement, directive par directive : rien n'est autorisé par défaut.
+ */
+
+type Directives = Record<string, string[]>;
+
+export function buildCsp({ nonce, isDev }: { nonce: string; isDev: boolean }): string {
+  const directives: Directives = {
+    "default-src": ["'self'"],
+    // 'strict-dynamic' : seuls les scripts portant le nonce (et ceux qu'ils chargent) s'exécutent.
+    // 'unsafe-eval' uniquement en dev : React l'utilise pour reconstruire les piles d'erreur.
+    "script-src": ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(isDev ? ["'unsafe-eval'"] : [])],
+    "style-src": ["'self'", `'nonce-${nonce}'`],
+    // Vercel Blob héberge les photos et vidéos produit (phase 2).
+    "img-src": ["'self'", "blob:", "data:", "https://*.public.blob.vercel-storage.com"],
+    "media-src": ["'self'", "https://*.public.blob.vercel-storage.com"],
+    "font-src": ["'self'"],
+    // Sentry passe par un tunnel same-origin (/monitoring) : pas besoin d'autoriser son domaine.
+    "connect-src": ["'self'", ...(isDev ? ["ws:"] : [])],
+    "frame-src": ["'none'"],
+    "object-src": ["'none'"],
+    "base-uri": ["'self'"],
+    "form-action": ["'self'"],
+    "frame-ancestors": ["'none'"],
+    ...(isDev ? {} : { "upgrade-insecure-requests": [] }),
+  };
+
+  return Object.entries(directives)
+    .map(([name, values]) => [name, ...values].join(" "))
+    .join("; ");
+}
+
+/** Nonce imprévisible et unique par requête (128 bits d'aléa). */
+export function generateNonce(): string {
+  return Buffer.from(crypto.randomUUID()).toString("base64");
+}

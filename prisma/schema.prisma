@@ -1,0 +1,586 @@
+// Schéma validé en phase 0 (docs/PHASE0_CADRAGE.md).
+// Conventions : montants en centimes (Int), jamais de float ; snapshots figés sur commandes et factures.
+// Les tables d'authentification (Better Auth) seront ajoutées en phase 4.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7 : l'URL de connexion vit dans prisma.config.ts (migrations) et dans src/server/db.ts (runtime).
+}
+
+// ───────────── Réglages ─────────────
+
+enum TaxMode {
+  FRANCHISE_293B
+  STANDARD
+}
+
+/// Ligne unique (id = "singleton"). Tous les seuils sont saisis dans l'admin, jamais codés en dur.
+model ShopSettings {
+  id                         String   @id @default("singleton")
+  shopName                   String
+  /// Identité légale du vendeur (nom, SIRET, adresse, email, hébergeur, médiateur…), validée par Zod.
+  legalIdentity              Json
+  taxMode                    TaxMode  @default(FRANCHISE_293B)
+  /// 2000 = 20 %. Sert uniquement le jour où la franchise en base de TVA ne s'applique plus.
+  defaultTaxRateBps          Int      @default(0)
+  christmasBannerEnabled     Boolean  @default(false)
+  christmasBannerText        String?
+  marginAlertThresholdBps    Int      @default(3000)
+  lowStockThreshold          Int      @default(10)
+  microRevenueCeilingCents   Int?
+  vatFranchiseThresholdCents Int?
+  thresholdAlertRatioBps     Int      @default(8000)
+  invoicePrefix              String   @default("BTQ")
+  cgvVersion                 String
+  updatedAt                  DateTime @updatedAt
+}
+
+// ───────────── Catalogue ─────────────
+
+enum SupplierAdapterKind {
+  ALIEXPRESS
+  CJ
+  MANUAL
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+
+model Product {
+  id                   String              @id @default(cuid())
+  slug                 String              @unique
+  name                 String
+  tagline              String
+  /// Blocs éditoriaux (fonctionnement, bénéfices, entretien, FAQ…), validés par Zod.
+  contentBlocks        Json
+  sizeGuide            Json
+  packageContents      String
+  textileComposition   String?
+  careInstructions     String?
+  /// Marquage de tri / filière REP : rempli seulement après vérification.
+  sortingInstructions  String?
+  // Règlement GPSR
+  manufacturerName     String?
+  manufacturerAddress  String?
+  manufacturerContact  String?
+  euResponsibleName    String?
+  euResponsibleAddress String?
+  euResponsibleContact String?
+  productReference     String?
+  safetyWarnings       String?
+  defaultAdapter       SupplierAdapterKind @default(MANUAL)
+  active               Boolean             @default(false)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  media                ProductMedia[]
+  variants             Variant[]
+}
+
+model ProductMedia {
+  id        String    @id @default(cuid())
+  productId String
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  kind      MediaKind
+  blobUrl   String
+  posterUrl String?
+  alt       String
+  width     Int
+  height    Int
+  position  Int
+
+  @@index([productId, position])
+}
+
+model Variant {
+  id                 String             @id @default(cuid())
+  productId          String
+  product            Product            @relation(fields: [productId], references: [id])
+  sku                String             @unique
+  label              String
+  widthCm            Int
+  lengthCm           Int
+  recommendedFor     String
+  priceCents         Int
+  /// Le prix barré n'est jamais saisi : il est calculé depuis SalePriceHistory (directive Omnibus).
+  showReferencePrice Boolean            @default(false)
+  position           Int
+  active             Boolean            @default(true)
+  priceHistory       SalePriceHistory[]
+  offers             SupplierOffer[]
+  orderItems         OrderItem[]
+}
+
+/// Historique du prix de VENTE, source du prix de référence légal (plus bas prix des 30 derniers jours).
+model SalePriceHistory {
+  id         String   @id @default(cuid())
+  variantId  String
+  variant    Variant  @relation(fields: [variantId], references: [id])
+  priceCents Int
+  validFrom  DateTime @default(now())
+
+  @@index([variantId, validFrom])
+}
+
+/// Une offre fournisseur pour une taille, classée par priorité (1 = principale).
+model SupplierOffer {
+  id                String                @id @default(cuid())
+  variantId         String
+  variant           Variant               @relation(fields: [variantId], references: [id])
+  adapter           SupplierAdapterKind
+  supplierName      String
+  externalProductId String?
+  externalSkuId     String?
+  externalUrl       String?
+  priority          Int
+  purchaseCostCents Int
+  shippingCostCents Int
+  deliveryDaysMin   Int
+  /// Valeur qui alimente le délai affiché au client : jamais plus optimiste que le fournisseur.
+  deliveryDaysMax   Int
+  lastKnownStock    Int?
+  lastSyncedAt      DateTime?
+  lastSyncError     String?
+  active            Boolean               @default(true)
+  costHistory       SupplierCostHistory[]
+  supplierOrders    SupplierOrder[]
+
+  @@unique([variantId, priority])
+}
+
+model SupplierCostHistory {
+  id                String        @id @default(cuid())
+  offerId           String
+  offer             SupplierOffer @relation(fields: [offerId], references: [id])
+  purchaseCostCents Int
+  shippingCostCents Int
+  stock             Int?
+  recordedAt        DateTime      @default(now())
+
+  @@index([offerId, recordedAt])
+}
+
+// ───────────── Promotions & livraison ─────────────
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+enum BundleKind {
+  QUANTITY
+  COMBO
+}
+
+model BundleOffer {
+  id              String       @id @default(cuid())
+  name            String
+  kind            BundleKind
+  minQuantity     Int?
+  comboVariantIds String[]
+  discountType    DiscountType
+  /// Points de base si PERCENT (1000 = 10 %), centimes si FIXED.
+  discountValue   Int
+  active          Boolean      @default(false)
+  startsAt        DateTime?
+  endsAt          DateTime?
+}
+
+model PromoCode {
+  id               String       @id @default(cuid())
+  /// Stocké en majuscules.
+  code             String       @unique
+  discountType     DiscountType
+  discountValue    Int
+  minSubtotalCents Int?
+  maxUses          Int?
+  /// Incrémenté dans la transaction du webhook de paiement, jamais au moment du panier.
+  usedCount        Int          @default(0)
+  startsAt         DateTime?
+  expiresAt        DateTime?
+  active           Boolean      @default(true)
+  orders           Order[]
+}
+
+model ShippingRate {
+  id             String  @id @default(cuid())
+  name           String
+  country        String  @default("FR")
+  priceCents     Int
+  freeAboveCents Int?
+  active         Boolean @default(true)
+}
+
+// ───────────── Clients & commandes ─────────────
+
+model Customer {
+  id             String    @id @default(cuid())
+  /// Normalisé en minuscules.
+  email          String    @unique
+  firstName      String?
+  lastName       String?
+  phone          String?
+  anonymizedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  lastActivityAt DateTime  @default(now())
+  orders         Order[]
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  SENT_TO_SUPPLIER
+  SHIPPED
+  DELIVERED
+  FULFILLMENT_ERROR
+  CANCELLED
+  REFUND_REQUESTED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  RETURNED
+}
+
+model Order {
+  id                      String              @id @default(cuid())
+  /// Numéro communiqué au client.
+  number                  String              @unique
+  status                  OrderStatus         @default(PENDING_PAYMENT)
+  customerId              String?
+  customer                Customer?           @relation(fields: [customerId], references: [id])
+  email                   String
+  shippingName            String?
+  shippingLine1           String?
+  shippingLine2           String?
+  shippingPostalCode      String?
+  shippingCity            String?
+  shippingCountry         String              @default("FR")
+  phone                   String?
+  subtotalCents           Int
+  bundleDiscountCents     Int                 @default(0)
+  promoDiscountCents      Int                 @default(0)
+  shippingCents           Int
+  taxCents                Int                 @default(0)
+  totalCents              Int
+  taxMode                 TaxMode
+  currency                String              @default("EUR")
+  promoCodeId             String?
+  promoCode               PromoCode?          @relation(fields: [promoCodeId], references: [id])
+  stripeCheckoutSessionId String?             @unique
+  stripePaymentIntentId   String?             @unique
+  /// card / apple_pay / google_pay : colonne « mode de paiement » du livre des recettes.
+  paymentMethodType       String?
+  paidAt                  DateTime?
+  /// Date du virement Stripe vers la banque (livre des recettes, colonne secondaire).
+  payoutAt                DateTime?
+  estimatedDeliveryMax    DateTime?
+  cgvAcceptedAt           DateTime?
+  cgvVersion              String?
+  utmSource               String?
+  utmMedium               String?
+  utmCampaign             String?
+  utmContent              String?
+  utmTerm                 String?
+  ttclid                  String?
+  /// Identifiant partagé pixel / Events API pour la déduplication.
+  marketingEventId        String?
+  deliveredAt             DateTime?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  items                   OrderItem[]
+  statusEvents            OrderStatusEvent[]
+  supplierOrders          SupplierOrder[]
+  invoices                Invoice[]
+  refunds                 Refund[]
+  notes                   OrderNote[]
+  emails                  EmailLog[]
+  withdrawals             WithdrawalRequest[]
+  reviewInvite            ReviewInvite?
+
+  @@index([status, createdAt])
+  @@index([paidAt])
+}
+
+model OrderItem {
+  id              String         @id @default(cuid())
+  orderId         String
+  order           Order          @relation(fields: [orderId], references: [id])
+  variantId       String
+  variant         Variant        @relation(fields: [variantId], references: [id])
+  productName     String
+  variantLabel    String
+  sku             String
+  quantity        Int
+  unitPriceCents  Int
+  discountCents   Int            @default(0)
+  /// Coût réel connu au moment de la commande fournisseur (calcul de marge).
+  unitCostCents   Int?
+  supplierOrderId String?
+  supplierOrder   SupplierOrder? @relation(fields: [supplierOrderId], references: [id])
+  review          Review?
+}
+
+enum ActorType {
+  SYSTEM
+  WEBHOOK
+  CRON
+  ADMIN
+  CUSTOMER
+}
+
+model OrderStatusEvent {
+  id         String       @id @default(cuid())
+  orderId    String
+  order      Order        @relation(fields: [orderId], references: [id])
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  actorType  ActorType
+  actorId    String?
+  reason     String
+  createdAt  DateTime     @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model OrderNote {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+}
+
+// ───────────── Fulfillment ─────────────
+
+enum SupplierOrderStatus {
+  QUEUED
+  PLACING
+  AWAITING_SUPPLIER_PAYMENT
+  PLACED
+  SHIPPED
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+/// Une commande fournisseur = un colis. Une commande client peut en avoir plusieurs.
+model SupplierOrder {
+  id              String              @id @default(cuid())
+  orderId         String
+  order           Order               @relation(fields: [orderId], references: [id])
+  offerId         String
+  offer           SupplierOffer       @relation(fields: [offerId], references: [id])
+  adapter         SupplierAdapterKind
+  /// Empêche tout double envoi au fournisseur pour une même tentative.
+  idempotencyKey  String              @unique
+  status          SupplierOrderStatus @default(QUEUED)
+  externalOrderId String?
+  attempts        Int                 @default(0)
+  nextAttemptAt   DateTime?
+  lastError       String?
+  costCents       Int?
+  trackingNumber  String?
+  carrier         String?
+  trackingUrl     String?
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  lastPolledAt    DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  items           OrderItem[]
+  purchase        PurchaseRecord?
+
+  @@index([status, lastPolledAt])
+}
+
+/// Registre des achats (obligatoire pour l'activité de vente).
+model PurchaseRecord {
+  id              String         @id @default(cuid())
+  supplierOrderId String?        @unique
+  supplierOrder   SupplierOrder? @relation(fields: [supplierOrderId], references: [id])
+  date            DateTime
+  supplierName    String
+  reference       String
+  description     String
+  amountCents     Int
+  paymentMethod   String
+  createdAt       DateTime       @default(now())
+}
+
+// ───────────── Paiement, factures, remboursements ─────────────
+
+/// Idempotence des webhooks : la clé primaire refuse un second traitement du même événement.
+model ProcessedWebhookEvent {
+  id          String   @id
+  source      String
+  type        String
+  processedAt DateTime @default(now())
+}
+
+enum InvoiceType {
+  INVOICE
+  CREDIT_NOTE
+}
+
+/// Immuable une fois émise (trigger SQL ajouté en phase 3). Un remboursement produit un avoir.
+model Invoice {
+  id               String      @id @default(cuid())
+  type             InvoiceType
+  /// BTQ-000001 / BTQ-AV-000001
+  number           String      @unique
+  orderId          String
+  order            Order       @relation(fields: [orderId], references: [id])
+  issuedAt         DateTime    @default(now())
+  sellerSnapshot   Json
+  customerSnapshot Json
+  lines            Json
+  /// Négatif pour un avoir.
+  totalCents       Int
+  taxCents         Int
+  legalMention     String
+  pdfBlobUrl       String
+  pdfSha256        String
+  relatedInvoiceId String?
+  relatedInvoice   Invoice?    @relation("CreditNoteOf", fields: [relatedInvoiceId], references: [id])
+  creditNotes      Invoice[]   @relation("CreditNoteOf")
+  refund           Refund?
+}
+
+/// Compteur sans trou, incrémenté dans la même transaction que la création de la facture.
+model InvoiceSequence {
+  series     String @id
+  lastNumber Int    @default(0)
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+model Refund {
+  id             String       @id @default(cuid())
+  orderId        String
+  order          Order        @relation(fields: [orderId], references: [id])
+  stripeRefundId String?      @unique
+  amountCents    Int
+  reason         String
+  status         RefundStatus @default(PENDING)
+  creditNoteId   String?      @unique
+  creditNote     Invoice?     @relation(fields: [creditNoteId], references: [id])
+  adminId        String?
+  refundedAt     DateTime?
+  createdAt      DateTime     @default(now())
+}
+
+// ───────────── Après-vente ─────────────
+
+enum WithdrawalStatus {
+  RECEIVED
+  ACCEPTED
+  RETURN_RECEIVED
+  REFUNDED
+  REJECTED
+}
+
+model WithdrawalRequest {
+  id        String           @id @default(cuid())
+  orderId   String
+  order     Order            @relation(fields: [orderId], references: [id])
+  message   String?
+  status    WithdrawalStatus @default(RECEIVED)
+  createdAt DateTime         @default(now())
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Un avis = un article réellement acheté : l'achat vérifié est garanti par construction.
+model Review {
+  id             String       @id @default(cuid())
+  orderItemId    String       @unique
+  orderItem      OrderItem    @relation(fields: [orderItemId], references: [id])
+  displayName    String
+  rating         Int
+  body           String
+  status         ReviewStatus @default(PENDING)
+  moderationNote String?
+  submittedAt    DateTime     @default(now())
+  publishedAt    DateTime?
+}
+
+/// Lien de dépôt d'avis envoyé à J+7 après livraison ; seul le hash du jeton est stocké.
+model ReviewInvite {
+  id        String    @id @default(cuid())
+  orderId   String    @unique
+  order     Order     @relation(fields: [orderId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+}
+
+model ContactMessage {
+  id          String   @id @default(cuid())
+  email       String
+  name        String
+  orderNumber String?
+  body        String
+  createdAt   DateTime @default(now())
+}
+
+enum EmailType {
+  ORDER_CONFIRMATION
+  SHIPPED
+  DELIVERED
+  REVIEW_REQUEST
+  REFUND
+  DELAY_NOTICE
+  WITHDRAWAL_ACK
+}
+
+/// La contrainte unique sur dedupKey empêche tout double envoi d'un même email.
+model EmailLog {
+  id       String    @id @default(cuid())
+  orderId  String?
+  order    Order?    @relation(fields: [orderId], references: [id])
+  type     EmailType
+  dedupKey String    @unique
+  resendId String?
+  sentAt   DateTime  @default(now())
+}
+
+// ───────────── Sécurité & conformité ─────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  /// Jamais de donnée personnelle en clair.
+  metadata   Json?
+  ipHash     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Preuve de consentement cookies (CNIL), sans donnée identifiante.
+model ConsentRecord {
+  id            String   @id @default(cuid())
+  consentId     String
+  choices       Json
+  policyVersion String
+  createdAt     DateTime @default(now())
+
+  @@index([consentId])
+}

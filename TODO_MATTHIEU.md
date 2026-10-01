@@ -1,0 +1,45 @@
+# À faire de ton côté (hors code)
+
+> Mis à jour à chaque phase. Coche au fur et à mesure.
+
+## Administratif et légal
+
+- [ ] Ajouter l'activité de **vente de marchandises (BIC)** à ta micro-entreprise sur le guichet unique de l'INPI.
+- [ ] Adhérer à un **médiateur de la consommation** et récupérer ses coordonnées (nom, adresse, site).
+- [ ] Faire confirmer par ton comptable (si tu en as un) : la **série de factures dédiée `BTQ-`** distincte de tes factures BNC, et la **date d'encaissement** retenue pour le livre des recettes (date de paiement Stripe).
+- [ ] Vérifier si le produit relève d'une **filière REP** (textiles / éléments d'ameublement) et les obligations de **marquage de tri** (Triman) qui en découlent.
+- [ ] Faire relire les **CGV** et la **politique de confidentialité** par un juriste (les modèles générés ne le remplacent pas).
+- [ ] Choisir une **adresse de retour** en France pour les rétractations (frais de retour à la charge du client, validé en phase 0).
+
+## Comptes à créer
+
+- [ ] Nom de domaine
+- [ ] **Vercel Pro** (le plan gratuit interdit l'usage commercial et les crons horaires) — région `fra1`
+- [ ] **Neon** (région Francfort `eu-central-1`) — plan payant avant la prod pour une restauration (PITR) suffisante
+- [ ] **Stripe** (vérification d'identité)
+- [ ] **Resend** (+ configuration SPF, DKIM, DMARC sur le domaine)
+- [ ] **Upstash** (Redis + QStash, région UE)
+- [ ] **Cloudflare** (Turnstile)
+- [ ] **Sentry** (choisir la **région UE** à la création de l'organisation)
+- [ ] **TikTok Ads** (pixel + Events API)
+- [ ] **AliExpress Open Platform** : créer une app « Dropshipping » et demander son approbation (délai de validation par AliExpress)
+- [ ] **CJ Dropshipping** (fournisseur de secours)
+
+## Produit et fournisseurs
+
+- [ ] Trouver **au moins un fournisseur de secours par taille** (le stock du principal est faible) et comparer leur délai réel.
+- [ ] Vérifier le **coût de livraison réel** d'une seule pièce (livraison gratuite chez le fournisseur seulement dès 10 €).
+- [ ] Définir le **prix de vente de la taille L** et relever les **prix d'achat M et L**.
+- [ ] Obtenir du fournisseur : **composition textile**, informations **GPSR** (fabricant, responsable UE), consignes d'entretien et de sécurité **en français**.
+- [ ] Commander un **échantillon** : vérifier la qualité, tourner tes propres photos et vidéos.
+
+## À fournir pour la boutique
+
+- [ ] Nom de la boutique, logo, couleurs (sinon le design provisoire crème / brun / sauge reste)
+- [ ] SIRET, adresse, email de contact
+- [ ] Photos et vidéos du produit
+
+## Avant la mise en production (phase 8)
+
+- [ ] Créer le dépôt GitHub privé (fait par Claude avec ton accord) et y brancher Vercel
+- [ ] Renseigner toutes les variables de `.env.example` dans Vercel (Production + Preview)
