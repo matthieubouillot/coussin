@@ -22,6 +22,7 @@ export default defineConfig({
     include: ["tests/integration/**/*.test.ts"],
     environment: "node",
     globalSetup: ["tests/integration/global-setup.ts"],
+    setupFiles: ["tests/integration/setup.ts"],
     // Une seule base partagée : les fichiers s'exécutent l'un après l'autre.
     fileParallelism: false,
     env: {
