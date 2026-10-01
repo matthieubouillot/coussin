@@ -12,9 +12,14 @@ describe("buildCsp", () => {
     expect(directive(prod, "script-src")).toBe("script-src 'self' 'nonce-abc123' 'strict-dynamic'");
   });
 
-  it("n'autorise jamais unsafe-inline ni unsafe-eval en production", () => {
-    expect(prod).not.toContain("unsafe-inline");
+  it("n'autorise jamais de script ou de balise <style> en ligne sans nonce en production", () => {
+    expect(directive(prod, "script-src")).not.toContain("unsafe-inline");
+    expect(directive(prod, "style-src")).toBe("style-src 'self' 'nonce-abc123'");
     expect(prod).not.toContain("unsafe-eval");
+  });
+
+  it("autorise seulement les attributs style en ligne", () => {
+    expect(directive(prod, "style-src-attr")).toBe("style-src-attr 'unsafe-inline'");
   });
 
   it("interdit l'affichage dans une iframe et les plugins", () => {

@@ -10,3 +10,30 @@
   --font-serif: var(--font-serif), Georgia, serif;
   --font-sans: var(--font-sans), system-ui, sans-serif;
 }
+
+/* Mise en forme des pages légales : lisibilité avant tout. */
+.legal h2 {
+  @apply text-cocoa mt-10 font-serif text-2xl;
+}
+.legal h3 {
+  @apply mt-6 text-lg font-medium;
+}
+.legal p,
+.legal ul,
+.legal ol,
+.legal table {
+  @apply mt-3 leading-relaxed;
+}
+.legal ul {
+  @apply list-disc pl-6;
+}
+.legal ol {
+  @apply list-decimal pl-6;
+}
+.legal a {
+  @apply underline underline-offset-2;
+}
+.legal th,
+.legal td {
+  @apply border-cocoa/20 border p-2 text-left align-top text-sm;
+}

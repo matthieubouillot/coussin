@@ -8,7 +8,8 @@
 - [ ] Adhérer à un **médiateur de la consommation** et récupérer ses coordonnées (nom, adresse, site).
 - [ ] Faire confirmer par ton comptable (si tu en as un) : la **série de factures dédiée `BTQ-`** distincte de tes factures BNC, et la **date d'encaissement** retenue pour le livre des recettes (date de paiement Stripe).
 - [ ] Vérifier si le produit relève d'une **filière REP** (textiles / éléments d'ameublement) et les obligations de **marquage de tri** (Triman) qui en découlent.
-- [ ] Faire relire les **CGV** et la **politique de confidentialité** par un juriste (les modèles générés ne le remplacent pas).
+- [ ] Faire relire les **CGV**, la **politique de confidentialité**, la **politique cookies**, les **mentions légales** et la page **avis clients** par un juriste (les modèles générés ne le remplacent pas). Points d'attention : encadré de garantie légale de conformité (texte réglementaire), transfert de l'adresse de livraison au fournisseur en Chine.
+- [ ] Vérifier l'**adresse postale de Vercel Inc.** (hébergeur) sur vercel.com/legal pour les mentions légales.
 - [ ] Choisir une **adresse de retour** en France pour les rétractations (frais de retour à la charge du client, validé en phase 0).
 
 ## Comptes à créer
@@ -32,6 +33,8 @@
 - [ ] Définir le **prix de vente de la taille L** et relever les **prix d'achat M et L**.
 - [ ] Obtenir du fournisseur : **composition textile**, informations **GPSR** (fabricant, responsable UE), consignes d'entretien et de sécurité **en français**.
 - [ ] Commander un **échantillon** : vérifier la qualité, tourner tes propres photos et vidéos.
+- [ ] Confirmer le **guide des tailles** (poids d'animal conseillé par taille : les valeurs de dev sont fictives) et les **consignes de lavage** exactes.
+- [ ] Remplir les **informations GPSR** avant la mise en ligne : la page affiche « en cours de vérification » tant qu'elles manquent, ce qui n'est pas acceptable en production.
 
 ## À fournir pour la boutique
 

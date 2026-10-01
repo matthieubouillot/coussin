@@ -19,6 +19,17 @@
 | Dépendances : versions exactes, lockfile, `pnpm audit` en CI, Dependabot hebdomadaire, scripts d'installation bloqués sauf liste blanche, correctifs transitifs forcés (`overrides`) | `package.json`, `pnpm-workspace.yaml`, CI        | CI                                                                                           |
 | `no-console` (sauf warn/error) pour éviter les fuites dans les logs                                                                                                                  | `eslint.config.mjs`                              | lint                                                                                         |
 
+## Mesures ajoutées (phase 2 — boutique)
+
+| Mesure                                                                                                                                                                                   | Où                                                              | Vérifié par                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------- |
+| Totaux toujours recalculés côté serveur depuis la base ; le navigateur n'envoie que des identifiants de variantes et des quantités                                                       | `src/server/pricing/compute-cart.ts`, `src/server/cart/cart.ts` | `tests/unit/compute-cart.test.ts`                         |
+| Panier dans un cookie `HttpOnly`, `SameSite=Lax`, `Secure` en production, signé HMAC-SHA256 (comparaison à temps constant), contenu validé par Zod et plafonné (10 lignes, 10 par ligne) | `src/server/cart/cart-cookie.ts`                                | `tests/unit/cart-cookie.test.ts`, E2E « cookie falsifié » |
+| Rate limiting par visiteur (IP hachée HMAC, jamais stockée en clair) : panier 60/min, codes promo 10/10 min (anti force brute), consentement 20/min ; Upstash en ligne                   | `src/server/security/ratelimit.ts`                              | revue                                                     |
+| Server Actions : rate limiting → Zod → relecture en base, avant toute écriture                                                                                                           | `src/app/(shop)/panier/actions.ts`                              | E2E                                                       |
+| Aucun traceur ni requête tierce avant consentement                                                                                                                                       | `src/components/consent/CookieConsent.tsx`                      | E2E « aucune requête vers un tiers »                      |
+| CSP : `style-src` exige le nonce en production ; seuls les attributs `style=""` sont autorisés (`style-src-attr`, requis par `next/image`, sans exécution de code)                       | `src/lib/security/csp.ts`                                       | `tests/unit/csp.test.ts`                                  |
+
 ## OWASP Top 10 (2021) — état
 
 | Risque                            | Traitement prévu                                                                                     | Phase         |
@@ -26,7 +37,7 @@
 | A01 Contrôle d'accès              | `requireAdmin()` dans chaque Server Action / route admin, en plus du masquage                        | 4             |
 | A02 Défaillances cryptographiques | HTTPS/HSTS ✅ ; jetons stockés hachés ; cookies `HttpOnly Secure SameSite`                           | 1 ✅ / 3-4    |
 | A03 Injection                     | Prisma (requêtes paramétrées), Zod partout, CSP ✅                                                   | 1 ✅ / toutes |
-| A04 Conception non sécurisée      | Prix recalculés serveur, machine à états, idempotence webhooks                                       | 3             |
+| A04 Conception non sécurisée      | Prix recalculés serveur ✅, machine à états, idempotence webhooks                                    | 2 ✅ / 3      |
 | A05 Mauvaise configuration        | En-têtes ✅, env validée ✅, `poweredByHeader` off ✅                                                | 1 ✅          |
 | A06 Composants vulnérables        | audit CI ✅, Dependabot ✅                                                                           | 1 ✅          |
 | A07 Authentification              | Better Auth + TOTP obligatoire, verrouillage, rate limiting                                          | 4             |

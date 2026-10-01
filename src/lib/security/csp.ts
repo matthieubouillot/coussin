@@ -14,7 +14,12 @@ export function buildCsp({ nonce, isDev }: { nonce: string; isDev: boolean }): s
     // 'strict-dynamic' : seuls les scripts portant le nonce (et ceux qu'ils chargent) s'exécutent.
     // 'unsafe-eval' uniquement en dev : React l'utilise pour reconstruire les piles d'erreur.
     "script-src": ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(isDev ? ["'unsafe-eval'"] : [])],
-    "style-src": ["'self'", `'nonce-${nonce}'`],
+    // En dev, l'overlay de Next.js injecte des <style> sans nonce. Un nonce rendant 'unsafe-inline'
+    // inopérant, on ne met que 'unsafe-inline' en dev ; la production exige le nonce.
+    "style-src": isDev ? ["'self'", "'unsafe-inline'"] : ["'self'", `'nonce-${nonce}'`],
+    // Attributs style="" (next/image, positionnement React) : sans exécution de code, risque faible,
+    // et impossibles à couvrir par un nonce. Les balises <style> restent soumises au nonce.
+    "style-src-attr": ["'unsafe-inline'"],
     // Vercel Blob héberge les photos et vidéos produit (phase 2).
     "img-src": ["'self'", "blob:", "data:", "https://*.public.blob.vercel-storage.com"],
     "media-src": ["'self'", "https://*.public.blob.vercel-storage.com"],

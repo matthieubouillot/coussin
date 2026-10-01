@@ -60,6 +60,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Les migrations s'appliquent sur une base vierge
         run: pnpm db:deploy
+      - name: Données de test
+        run: pnpm db:seed
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v7

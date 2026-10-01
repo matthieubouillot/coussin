@@ -21,6 +21,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  images: {
+    // Médias produit hébergés sur Vercel Blob (uploads admin) ; aucun autre domaine distant.
+    remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" }],
+    formats: ["image/avif", "image/webp"],
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
