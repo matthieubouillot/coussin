@@ -120,13 +120,22 @@ test.describe("page produit et panier", () => {
 test("toutes les pages légales sont liées depuis le pied de page", async ({ page }) => {
   await page.goto("/");
   await refuseCookies(page);
-  const links = page.getByRole("navigation", { name: "Informations légales" }).getByRole("link");
+  const links = page.getByRole("navigation", { name: "Aide et informations légales" }).getByRole("link");
   const hrefs = await links.evaluateAll((els) => els.map((el) => el.getAttribute("href")));
-  expect(hrefs).toEqual(["/mentions-legales", "/cgv", "/confidentialite", "/cookies", "/avis-clients"]);
+  expect(hrefs).toEqual([
+    "/contact",
+    "/suivi",
+    "/retractation",
+    "/mentions-legales",
+    "/cgv",
+    "/confidentialite",
+    "/cookies",
+    "/avis-clients",
+  ]);
   for (const href of hrefs) {
     const response = await page.goto(href!);
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Informations légales" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Aide et informations légales" })).toBeVisible();
   }
 });

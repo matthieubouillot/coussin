@@ -21,6 +21,7 @@ minimumReleaseAgeExclude:
   - "@sentry/server-runtime-injection@11.2.0"
   - "@sentry/server-utils@11.2.0"
   - "@sentry/vercel-edge@11.2.0"
+  - stripe@23.0.0
 
 # Correctifs de sécurité de dépendances transitives du CLI Prisma (pnpm audit).
 # À retirer quand Prisma embarquera lui-même ces versions.

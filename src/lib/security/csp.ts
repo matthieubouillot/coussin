@@ -26,10 +26,12 @@ export function buildCsp({ nonce, isDev }: { nonce: string; isDev: boolean }): s
     "font-src": ["'self'"],
     // Sentry passe par un tunnel same-origin (/monitoring) : pas besoin d'autoriser son domaine.
     "connect-src": ["'self'", ...(isDev ? ["ws:"] : [])],
-    "frame-src": ["'none'"],
+    // Cloudflare Turnstile (anti-robot des formulaires publics) s'affiche dans une iframe.
+    "frame-src": ["https://challenges.cloudflare.com"],
     "object-src": ["'none'"],
     "base-uri": ["'self'"],
-    "form-action": ["'self'"],
+    // Le bouton de commande redirige vers la page de paiement hébergée par Stripe.
+    "form-action": ["'self'", "https://checkout.stripe.com"],
     "frame-ancestors": ["'none'"],
     ...(isDev ? {} : { "upgrade-insecure-requests": [] }),
   };

@@ -20,6 +20,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Génération des factures PDF côté serveur : paquet Node chargé tel quel, non bundlé.
+  serverExternalPackages: ["@react-pdf/renderer"],
   reactStrictMode: true,
   images: {
     // Médias produit hébergés sur Vercel Blob (uploads admin) ; aucun autre domaine distant.

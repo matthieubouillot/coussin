@@ -21,6 +21,10 @@ export const RATE_LIMITS = {
   cartUpdate: { limit: 60, window: "1 m" },
   promoCode: { limit: 10, window: "10 m" },
   consent: { limit: 20, window: "1 m" },
+  checkout: { limit: 10, window: "10 m" },
+  orderTracking: { limit: 10, window: "10 m" },
+  contact: { limit: 5, window: "10 m" },
+  withdrawal: { limit: 5, window: "10 m" },
 } as const satisfies Record<string, Rule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

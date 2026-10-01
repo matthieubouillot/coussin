@@ -40,15 +40,29 @@ L'admin est servi sous `http://localhost:3000/<ADMIN_PATH>` ; `/admin` renvoie v
 
 ## Qualité
 
-| Commande        | Rôle                                                                   |
-| --------------- | ---------------------------------------------------------------------- |
-| `pnpm check`    | lint + format + types + tests unitaires (à lancer avant chaque commit) |
-| `pnpm test`     | tests unitaires (Vitest)                                               |
-| `pnpm test:e2e` | tests E2E (Playwright) sur un build de production local                |
-| `pnpm format`   | formate le code (Prettier)                                             |
-| `pnpm audit`    | vulnérabilités connues des dépendances                                 |
+| Commande                | Rôle                                                                   |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `pnpm check`            | lint + format + types + tests unitaires (à lancer avant chaque commit) |
+| `pnpm test`             | tests unitaires (Vitest)                                               |
+| `pnpm test:integration` | tests d'intégration sur la base `coussin_test` (vidée à chaque test)   |
+| `pnpm test:e2e`         | tests E2E (Playwright) sur un build de production local                |
+| `pnpm format`           | formate le code (Prettier)                                             |
+| `pnpm audit`            | vulnérabilités connues des dépendances                                 |
 
 La CI GitHub Actions rejoue tout cela à chaque push, plus l'application des migrations sur une base vierge.
+
+## Paiement en local (Stripe, mode test)
+
+1. Renseigner dans `.env` les clés **de test** : `STRIPE_SECRET_KEY` (`sk_test_…`) et `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
+2. Installer la [CLI Stripe](https://docs.stripe.com/stripe-cli) puis relayer les webhooks :
+   `stripe listen --forward-to localhost:3000/api/webhooks/stripe` — copier le `whsec_…` affiché dans `STRIPE_WEBHOOK_SECRET`.
+3. Payer avec la carte de test `4242 4242 4242 4242` (date future, CVC quelconque).
+
+Sans clé Resend, les emails sont écrits dans `.data/emails/` (HTML + pièces jointes) ; sans jeton Vercel Blob, les factures PDF vont dans `.data/private/`.
+
+Parcours d'achat E2E réel : `stripe listen --forward-to localhost:3100/api/webhooks/stripe` puis `E2E_STRIPE=1 pnpm test:e2e achat-stripe`.
+
+Une clé `sk_live_` est refusée tant que `STRIPE_LIVE_ENABLED` ne vaut pas `true` (réservé à la phase 8).
 
 ## Base de données
 

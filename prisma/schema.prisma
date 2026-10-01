@@ -428,7 +428,7 @@ enum InvoiceType {
   CREDIT_NOTE
 }
 
-/// Immuable une fois émise (trigger SQL ajouté en phase 3). Un remboursement produit un avoir.
+/// Immuable une fois émise (trigger SQL `invoice_immutable`). Un remboursement produit un avoir.
 model Invoice {
   id               String      @id @default(cuid())
   type             InvoiceType
@@ -444,8 +444,9 @@ model Invoice {
   totalCents       Int
   taxCents         Int
   legalMention     String
-  pdfBlobUrl       String
-  pdfSha256        String
+  /// Renseignés une seule fois, juste après l'émission (le trigger SQL interdit de les modifier ensuite).
+  pdfStorageKey    String?
+  pdfSha256        String?
   relatedInvoiceId String?
   relatedInvoice   Invoice?    @relation("CreditNoteOf", fields: [relatedInvoiceId], references: [id])
   creditNotes      Invoice[]   @relation("CreditNoteOf")
@@ -545,6 +546,8 @@ enum EmailType {
   REFUND
   DELAY_NOTICE
   WITHDRAWAL_ACK
+  ADMIN_ALERT
+  CONTACT
 }
 
 /// La contrainte unique sur dedupKey empêche tout double envoi d'un même email.

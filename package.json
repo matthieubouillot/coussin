@@ -14,23 +14,29 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "prisma migrate dev && prisma generate",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "postinstall": "prisma generate",
-    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
+    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
+    "test:integration": "vitest run --config vitest.integration.config.mts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
+    "@react-pdf/renderer": "4.9.0",
     "@sentry/nextjs": "11.2.0",
     "@upstash/ratelimit": "2.2.0",
     "@upstash/redis": "1.39.0",
+    "@vercel/blob": "2.8.0",
     "next": "16.3.8",
     "pg": "8.23.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-email": "6.11.0",
+    "resend": "6.31.0",
     "server-only": "0.0.1",
+    "stripe": "23.0.0",
     "zod": "4.6.5"
   },
   "devDependencies": {

@@ -42,6 +42,13 @@
 - [ ] SIRET, adresse, email de contact
 - [ ] Photos et vidéos du produit
 
+## Stripe et emails (pour tester le paiement)
+
+- [ ] Me fournir (dans `.env`, jamais par chat ni dans Git) les **clés de test Stripe** et, si possible, une **clé Resend** de test.
+- [ ] Dans le dashboard Stripe : activer **Apple Pay** et **Google Pay** (moyens de paiement), puis plus tard vérifier le domaine pour Apple Pay.
+- [ ] En production : créer l'endpoint webhook `https://<domaine>/api/webhooks/stripe` avec les événements `checkout.session.completed` et `checkout.session.expired`, **version d'API `2026-09-30.endive`**.
+- [ ] Resend : vérifier le domaine d'envoi (SPF, DKIM, DMARC) et choisir l'adresse expéditrice.
+
 ## Avant la mise en production (phase 8)
 
 - [ ] Créer le dépôt GitHub privé (fait par Claude avec ton accord) et y brancher Vercel

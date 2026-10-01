@@ -39,6 +39,8 @@ const serverEnvSchema = z.object({
 
   STRIPE_SECRET_KEY: service,
   STRIPE_WEBHOOK_SECRET: service,
+  // Verrou du mode live : tant qu'il ne vaut pas "true", une clé sk_live_ est refusée (phase 8).
+  STRIPE_LIVE_ENABLED: z.enum(["true", "false"]).optional(),
 
   RESEND_API_KEY: service,
   EMAIL_FROM: service,

@@ -30,6 +30,23 @@
 | Aucun traceur ni requête tierce avant consentement                                                                                                                                       | `src/components/consent/CookieConsent.tsx`                      | E2E « aucune requête vers un tiers »                      |
 | CSP : `style-src` exige le nonce en production ; seuls les attributs `style=""` sont autorisés (`style-src-attr`, requis par `next/image`, sans exécution de code)                       | `src/lib/security/csp.ts`                                       | `tests/unit/csp.test.ts`                                  |
 
+## Mesures ajoutées (phase 3 — paiement)
+
+| Mesure                                                                                                                                                                         | Où                                                        | Vérifié par                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------ |
+| Aucune donnée de carte ne transite ni n'est stockée : Stripe Checkout hébergé                                                                                                  | `src/server/checkout/create-checkout.ts`                  | revue                                      |
+| Montants envoyés à Stripe calculés côté serveur ; le webhook revérifie le montant encaissé (écart → facture bloquée + alerte)                                                  | `create-checkout.ts`, `src/server/stripe/handle-event.ts` | `tests/integration/stripe-webhook.test.ts` |
+| Commande validée **uniquement** par le webhook ; la page de retour n'est qu'informative                                                                                        | `src/app/(shop)/commande/confirmation`                    | intégration                                |
+| Signature Stripe vérifiée sur le corps brut, événements non signés rejetés (400)                                                                                               | `src/app/api/webhooks/stripe/route.ts`                    | intégration                                |
+| Idempotence : identifiant d'événement inséré dans la même transaction que ses effets ; emails dédupliqués par clé unique                                                       | `handle-event.ts`, `src/server/email/mailer.ts`           | intégration (événement rejoué)             |
+| Transitions de commande validées et journalisées, verrou optimiste                                                                                                             | `src/server/orders/state-machine.ts`                      | unitaires + intégration                    |
+| Factures immuables par trigger SQL (ni modification, ni suppression ; PDF enregistré une seule fois) ; numérotation sans trou sous concurrence                                 | migration `invoice_immutable`, `issue-invoice.ts`         | intégration (5 paiements simultanés)       |
+| Factures stockées en accès **privé** (Vercel Blob), jamais d'URL publique ; clé de stockage unique                                                                             | `src/server/storage/private-files.ts`                     | revue                                      |
+| Clé Stripe live refusée sans `STRIPE_LIVE_ENABLED=true`                                                                                                                        | `src/server/stripe/stripe.ts`                             | revue                                      |
+| Vente bloquée en production si l'identité légale contient encore des placeholders                                                                                              | `create-checkout.ts`                                      | revue                                      |
+| Formulaires publics (suivi, rétractation, contact) : Turnstile vérifié côté serveur + rate limiting + Zod ; suivi sans énumération (message identique si numéro ou email faux) | `src/app/(shop)/{suivi,retractation,contact}`             | E2E                                        |
+| Crons protégés par `CRON_SECRET` (comparaison à temps constant)                                                                                                                | `src/server/security/cron-auth.ts`                        | revue                                      |
+
 ## OWASP Top 10 (2021) — état
 
 | Risque                            | Traitement prévu                                                                                     | Phase         |
@@ -37,7 +54,7 @@
 | A01 Contrôle d'accès              | `requireAdmin()` dans chaque Server Action / route admin, en plus du masquage                        | 4             |
 | A02 Défaillances cryptographiques | HTTPS/HSTS ✅ ; jetons stockés hachés ; cookies `HttpOnly Secure SameSite`                           | 1 ✅ / 3-4    |
 | A03 Injection                     | Prisma (requêtes paramétrées), Zod partout, CSP ✅                                                   | 1 ✅ / toutes |
-| A04 Conception non sécurisée      | Prix recalculés serveur ✅, machine à états, idempotence webhooks                                    | 2 ✅ / 3      |
+| A04 Conception non sécurisée      | Prix recalculés serveur ✅, machine à états ✅, idempotence webhooks ✅                              | 2-3 ✅        |
 | A05 Mauvaise configuration        | En-têtes ✅, env validée ✅, `poweredByHeader` off ✅                                                | 1 ✅          |
 | A06 Composants vulnérables        | audit CI ✅, Dependabot ✅                                                                           | 1 ✅          |
 | A07 Authentification              | Better Auth + TOTP obligatoire, verrouillage, rate limiting                                          | 4             |
