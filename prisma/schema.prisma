@@ -1,6 +1,5 @@
 // Schéma validé en phase 0 (docs/PHASE0_CADRAGE.md).
 // Conventions : montants en centimes (Int), jamais de float ; snapshots figés sur commandes et factures.
-// Les tables d'authentification (Better Auth) seront ajoutées en phase 4.
 
 generator client {
   provider = "prisma-client"
@@ -586,4 +585,91 @@ model ConsentRecord {
   createdAt     DateTime @default(now())
 
   @@index([consentId])
+}
+
+// ───────────── Authentification admin (Better Auth) ─────────────
+// Généré par `npx auth generate` (better-auth 1.7.7), puis complété du verrouillage de compte.
+
+model User {
+  id               String      @id
+  name             String
+  email            String
+  emailVerified    Boolean     @default(false)
+  image            String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  twoFactorEnabled Boolean?    @default(false)
+  role             String      @default("admin")
+  /// Verrouillage temporaire après plusieurs mots de passe faux (géré par l'application).
+  failedLoginCount Int         @default(0)
+  lockedUntil      DateTime?
+  sessions         Session[]
+  accounts         Account[]
+  twofactors       TwoFactor[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model TwoFactor {
+  id                      String    @id
+  secret                  String
+  backupCodes             String
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified                Boolean?  @default(true)
+  failedVerificationCount Int?      @default(0)
+  lockedUntil             DateTime?
+
+  @@index([secret])
+  @@index([userId])
+  @@map("twoFactor")
 }

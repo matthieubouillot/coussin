@@ -38,6 +38,14 @@ pnpm dev                          # http://localhost:3000
 
 L'admin est servi sous `http://localhost:3000/<ADMIN_PATH>` ; `/admin` renvoie volontairement une 404.
 
+Créer un compte administrateur (aucune inscription publique n'existe) :
+
+```bash
+pnpm admin:create ton@email.fr "Ton nom"   # mot de passe demandé en saisie masquée (12 caractères min.)
+```
+
+À la première connexion, la double authentification (application TOTP) est imposée ; notez les codes de secours.
+
 ## Qualité
 
 | Commande                | Rôle                                                                   |

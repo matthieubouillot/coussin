@@ -19,7 +19,8 @@
     "db:seed": "prisma db seed",
     "postinstall": "prisma generate",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
-    "test:integration": "vitest run --config vitest.integration.config.mts"
+    "test:integration": "vitest run --config vitest.integration.config.mts",
+    "admin:create": "tsx --conditions=react-server scripts/create-admin.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
@@ -29,8 +30,10 @@
     "@upstash/ratelimit": "2.2.0",
     "@upstash/redis": "1.39.0",
     "@vercel/blob": "2.8.0",
+    "better-auth": "1.7.7",
     "next": "16.3.8",
     "pg": "8.23.1",
+    "qrcode": "1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-email": "6.11.0",
@@ -44,6 +47,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22.20.4",
     "@types/pg": "8.23.1",
+    "@types/qrcode": "1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "5.0.3",

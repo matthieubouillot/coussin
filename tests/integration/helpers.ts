@@ -147,3 +147,29 @@ export function completedEvent(
     },
   };
 }
+
+export const createStripeRefund = vi.fn(async (params: { amount: number }) => ({
+  id: `re_test_${Math.random().toString(36).slice(2)}`,
+  status: "succeeded",
+  amount: params.amount,
+}));
+
+/** Client Stripe simulé : signature des webhooks réelle, appels réseau sortants simulés. */
+export async function fakeStripeModule() {
+  const { default: Stripe } = await import("stripe");
+  const real = new Stripe("sk_test_integration_dummy");
+  const client = {
+    webhooks: real.webhooks,
+    paymentIntents: { retrieve: retrievePaymentIntent },
+    refunds: { create: createStripeRefund },
+  };
+  return { stripe: () => client, isStripeConfigured: () => true, STRIPE_API_VERSION: "2026-09-30.endive" };
+}
+
+/** Commande payée de bout en bout via le webhook (facture émise). */
+export async function createPaidOrder(post: (req: Request) => Promise<Response>) {
+  const order = await createPendingOrder();
+  const response = await post(signedWebhookRequest(completedEvent(order)));
+  if (response.status !== 200) throw new Error(`Webhook en échec : ${response.status}`);
+  return order;
+}

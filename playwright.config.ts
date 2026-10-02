@@ -12,7 +12,8 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "list",
   use: { baseURL: `http://localhost:${PORT}`, trace: "on-first-retry" },
   projects: [
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
+    // L'administration est un outil desktop : ses tests ne tournent qu'une fois (limites de connexion partagées).
+    { name: "mobile", use: { ...devices["Pixel 7"] }, testIgnore: /admin\.spec\.ts/ },
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
   ],
   // On teste le build de production (CSP sans unsafe-eval, en-têtes réels).

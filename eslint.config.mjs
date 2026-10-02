@@ -10,7 +10,7 @@ const eslintConfig = defineConfig([
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       // Les logs passent par un logger qui filtre les données perso (phase 3) ; pas de console.log oublié.
       "no-console": ["error", { allow: ["warn", "error"] }],
     },

@@ -9,13 +9,7 @@ import {
 } from "./helpers";
 
 // Seul l'appel réseau sortant vers Stripe est simulé ; la vérification de signature est réelle.
-vi.mock("@/server/stripe/stripe", async () => {
-  const { default: Stripe } = await import("stripe");
-  const real = new Stripe("sk_test_integration_dummy");
-  const { retrievePaymentIntent } = await import("./helpers");
-  const client = { webhooks: real.webhooks, paymentIntents: { retrieve: retrievePaymentIntent } };
-  return { stripe: () => client, isStripeConfigured: () => true, STRIPE_API_VERSION: "2026-09-30.endive" };
-});
+vi.mock("@/server/stripe/stripe", async () => (await import("./helpers")).fakeStripeModule());
 
 const { POST } = await import("@/app/api/webhooks/stripe/route");
 

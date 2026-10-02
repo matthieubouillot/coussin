@@ -47,17 +47,32 @@
 | Formulaires publics (suivi, rétractation, contact) : Turnstile vérifié côté serveur + rate limiting + Zod ; suivi sans énumération (message identique si numéro ou email faux) | `src/app/(shop)/{suivi,retractation,contact}`             | E2E                                        |
 | Crons protégés par `CRON_SECRET` (comparaison à temps constant)                                                                                                                | `src/server/security/cron-auth.ts`                        | revue                                      |
 
+## Mesures ajoutées (phase 4 — administration)
+
+| Mesure                                                                                                                                                                                          | Où                                                  | Vérifié par               |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------- |
+| Better Auth, email + mot de passe (12 car. min.) + **TOTP obligatoire** (aucune page ni action accessible avant activation), codes de secours                                                   | `src/server/auth/auth.ts`, `require-admin.ts`       | E2E `admin.spec.ts`       |
+| Aucune route HTTP d'authentification exposée (`/api/auth` absent) ; aucune inscription publique (`pnpm admin:create`)                                                                           | `auth.ts`, `scripts/create-admin.ts`                | revue                     |
+| `requireAdmin()` en tête de chaque page et Server Action admin ; routes API admin : 404 sans session (ne révèlent pas le chemin admin)                                                          | `src/app/admin/**`, `src/app/api/admin/**`          | E2E                       |
+| Sessions : 8 h max, cookies `HttpOnly` + `SameSite=Strict` + `Secure` en production, liste et révocation, changement de mot de passe qui ferme les autres sessions                              | `auth.ts`, page Sécurité                            | E2E (attributs du cookie) |
+| Verrouillage du compte 15 min après 5 mots de passe faux (message identique dans tous les cas), limite par IP (10 / 15 min), limite sur les codes TOTP, verrouillage TOTP intégré à Better Auth | `src/app/admin/auth-actions.ts`                     | E2E                       |
+| Journal d'audit : connexions (réussies, échouées, verrouillages), 2FA, remboursements, annulations, prix, réglages, exports, RGPD, téléchargements de pièces ; IP hachée                        | `src/server/audit/audit.ts`                         | intégration + E2E         |
+| Remboursements : montant restant revérifié en transaction sérialisable, clé d'idempotence Stripe, avoir automatique, échec Stripe sans effet comptable                                          | `src/server/orders/refunds.ts`                      | intégration               |
+| Export CSV protégé contre l'injection de formules                                                                                                                                               | `src/server/accounting/csv.ts`                      | unitaires                 |
+| Uploads admin : jetons Vercel Blob limités (types image/vidéo, 8 Mo / 80 Mo, nom de fichier contrôlé), URL enregistrée vérifiée ; CSP élargie à Vercel Blob **sur l'admin uniquement**          | `src/app/api/admin/media-upload/route.ts`, `csp.ts` | revue                     |
+| Admin sans bandeau cookies (cookies strictement nécessaires uniquement)                                                                                                                         | `src/app/(shop)/layout.tsx`                         | E2E                       |
+
 ## OWASP Top 10 (2021) — état
 
 | Risque                            | Traitement prévu                                                                                     | Phase         |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------- |
-| A01 Contrôle d'accès              | `requireAdmin()` dans chaque Server Action / route admin, en plus du masquage                        | 4             |
+| A01 Contrôle d'accès              | `requireAdmin()` dans chaque page / Server Action / route admin ✅, en plus du masquage              | 4 ✅          |
 | A02 Défaillances cryptographiques | HTTPS/HSTS ✅ ; jetons stockés hachés ; cookies `HttpOnly Secure SameSite`                           | 1 ✅ / 3-4    |
 | A03 Injection                     | Prisma (requêtes paramétrées), Zod partout, CSP ✅                                                   | 1 ✅ / toutes |
 | A04 Conception non sécurisée      | Prix recalculés serveur ✅, machine à états ✅, idempotence webhooks ✅                              | 2-3 ✅        |
 | A05 Mauvaise configuration        | En-têtes ✅, env validée ✅, `poweredByHeader` off ✅                                                | 1 ✅          |
 | A06 Composants vulnérables        | audit CI ✅, Dependabot ✅                                                                           | 1 ✅          |
-| A07 Authentification              | Better Auth + TOTP obligatoire, verrouillage, rate limiting                                          | 4             |
+| A07 Authentification              | Better Auth + TOTP obligatoire ✅, verrouillage ✅, rate limiting ✅                                 | 4 ✅          |
 | A08 Intégrité logiciel/données    | Signatures Stripe/QStash/CJ vérifiées, lockfile ✅                                                   | 1 ✅ / 3-5    |
-| A09 Journalisation                | Journal d'audit, Sentry sans PII ✅                                                                  | 1 ✅ / 4      |
+| A09 Journalisation                | Journal d'audit ✅, Sentry sans PII ✅                                                               | 1-4 ✅        |
 | A10 SSRF                          | Appels sortants uniquement vers des hôtes fixes (fournisseurs), aucune URL fournie par l'utilisateur | 5             |

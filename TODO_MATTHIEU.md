@@ -49,7 +49,15 @@
 - [ ] En production : créer l'endpoint webhook `https://<domaine>/api/webhooks/stripe` avec les événements `checkout.session.completed` et `checkout.session.expired`, **version d'API `2026-09-30.endive`**.
 - [ ] Resend : vérifier le domaine d'envoi (SPF, DKIM, DMARC) et choisir l'adresse expéditrice.
 
+## Administration
+
+- [ ] Installer une application TOTP (Aegis, 1Password, Google Authenticator…) et **conserver les codes de secours** hors du téléphone.
+- [ ] Saisir dans l'admin (Réglages) les **seuils officiels de l'année** : plafond micro-entreprise vente et seuil de franchise de TVA (je ne les code pas en dur : ils changent).
+- [ ] Remplir toute l'identité légale dans les Réglages (le paiement reste bloqué en production tant qu'il reste des « [À COMPLÉTER] »).
+
 ## Avant la mise en production (phase 8)
 
 - [ ] Créer le dépôt GitHub privé (fait par Claude avec ton accord) et y brancher Vercel
 - [ ] Renseigner toutes les variables de `.env.example` dans Vercel (Production + Preview)
+- [ ] Créer ton compte admin de production avec `pnpm admin:create` (sur la base de production) et activer la 2FA.
+- [ ] Ajouter l'événement webhook Stripe `refund.updated` (alerte si un remboursement échoue après coup).

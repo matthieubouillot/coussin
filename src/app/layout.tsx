@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import { Fraunces, Inter } from "next/font/google";
-import { CookieConsent } from "@/components/consent/CookieConsent";
-import { CONSENT_COOKIE_NAME, parseConsentCookie } from "@/lib/consent";
 import "./globals.css";
 
 // next/font auto-héberge les polices au build : aucune requête vers Google côté visiteur (RGPD, CSP).
@@ -20,16 +18,13 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  // Lire les cookies rend toutes les pages dynamiques : indispensable pour que chaque
+  // Lire les en-têtes rend toutes les pages dynamiques : indispensable pour que chaque
   // réponse reçoive le nonce CSP de sa requête.
-  const consent = parseConsentCookie((await cookies()).get(CONSENT_COOKIE_NAME)?.value);
+  await headers();
 
   return (
     <html lang="fr" className={`${serif.variable} ${sans.variable}`}>
-      <body className="bg-cream text-ink font-sans antialiased">
-        {children}
-        <CookieConsent initialConsent={consent} />
-      </body>
+      <body className="bg-cream text-ink font-sans antialiased">{children}</body>
     </html>
   );
 }

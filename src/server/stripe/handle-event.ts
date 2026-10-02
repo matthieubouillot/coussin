@@ -19,6 +19,9 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       return handleCheckoutCompleted(event, event.data.object);
     case "checkout.session.expired":
       return handleCheckoutExpired(event, event.data.object);
+    case "refund.updated":
+    case "refund.failed":
+      return handleRefundUpdate(event.data.object);
     default:
       // Les autres événements (remboursements, litiges) sont traités dans les phases suivantes.
       return;
@@ -163,4 +166,27 @@ async function handleCheckoutExpired(event: Stripe.Event, session: Stripe.Checko
   } catch (error) {
     if (!(error instanceof AlreadyProcessed)) throw error;
   }
+}
+
+/**
+ * Un remboursement par carte est presque toujours immédiat, mais Stripe peut l'annoncer « pending »
+ * puis échouer (carte expirée…). Dans ce cas, alerte immédiate : l'avoir émis ne correspond à
+ * aucun remboursement réel et le client doit être remboursé autrement.
+ */
+async function handleRefundUpdate(stripeRefund: Stripe.Refund): Promise<void> {
+  if (stripeRefund.status !== "failed" && stripeRefund.status !== "canceled") return;
+  const refund = await db.refund.findUnique({
+    where: { stripeRefundId: stripeRefund.id },
+    include: { order: { select: { number: true } }, creditNote: { select: { number: true } } },
+  });
+  if (!refund) return;
+  await db.refund.update({ where: { id: refund.id }, data: { status: "FAILED" } });
+  await notifyAdmin(
+    `refund-failed:${stripeRefund.id}`,
+    `Remboursement échoué — commande ${refund.order.number}`,
+    [
+      `Stripe indique l'échec du remboursement de ${(refund.amountCents / 100).toFixed(2)} € (${stripeRefund.failure_reason ?? "raison inconnue"}).`,
+      `L'avoir ${refund.creditNote?.number ?? "—"} a été émis : rembourser le client par un autre moyen (virement) et le noter dans la commande.`,
+    ],
+  );
 }

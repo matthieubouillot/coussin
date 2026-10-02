@@ -9,6 +9,9 @@ import type { CustomerSnapshot, InvoiceLine, SellerSnapshot } from "@/server/inv
  */
 
 export type InvoicePdfData = {
+  kind: "INVOICE" | "CREDIT_NOTE";
+  /** Pour un avoir : numéro de la facture d'origine. */
+  relatedInvoiceNumber: string | null;
   number: string;
   issuedAt: Date;
   orderNumber: string;
@@ -76,7 +79,7 @@ function InvoiceDocument({ data }: { data: InvoicePdfData }) {
   const { seller, customer } = data;
   return (
     <Document
-      title={`Facture ${data.number}`}
+      title={`${data.kind === "CREDIT_NOTE" ? "Avoir" : "Facture"} ${data.number}`}
       author={seller.sellerName}
       creationDate={data.issuedAt}
       producer=""
@@ -85,10 +88,11 @@ function InvoiceDocument({ data }: { data: InvoicePdfData }) {
       <Page size="A4" style={s.page}>
         <View style={s.row}>
           <View>
-            <Text style={s.title}>Facture</Text>
+            <Text style={s.title}>{data.kind === "CREDIT_NOTE" ? "Avoir" : "Facture"}</Text>
             <Text>N° {data.number}</Text>
             <Text>Date : {pdfDate(data.issuedAt)}</Text>
             <Text>Commande : {data.orderNumber}</Text>
+            {data.relatedInvoiceNumber && <Text>Se rapporte à la facture {data.relatedInvoiceNumber}</Text>}
           </View>
           <View style={{ maxWidth: 240 }}>
             <Text style={s.label}>{seller.shopName}</Text>
@@ -138,7 +142,7 @@ function InvoiceDocument({ data }: { data: InvoicePdfData }) {
 
         <View style={s.block}>
           {data.legalMention && <Text>{data.legalMention}</Text>}
-          {data.paidAt && (
+          {data.kind === "INVOICE" && data.paidAt && (
             <Text>
               Facture acquittée le {pdfDate(data.paidAt)}
               {data.paymentMethodType

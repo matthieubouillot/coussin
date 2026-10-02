@@ -25,6 +25,9 @@ export const RATE_LIMITS = {
   orderTracking: { limit: 10, window: "10 m" },
   contact: { limit: 5, window: "10 m" },
   withdrawal: { limit: 5, window: "10 m" },
+  // Par IP : contre l'attaque de nombreux comptes. Le verrouillage par compte (5 échecs) est dans loginAction.
+  adminLogin: { limit: 10, window: "15 m" },
+  adminTotp: { limit: 10, window: "15 m" },
 } as const satisfies Record<string, Rule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

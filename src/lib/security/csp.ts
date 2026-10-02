@@ -8,7 +8,15 @@
 
 type Directives = Record<string, string[]>;
 
-export function buildCsp({ nonce, isDev }: { nonce: string; isDev: boolean }): string {
+export function buildCsp({
+  nonce,
+  isDev,
+  admin = false,
+}: {
+  nonce: string;
+  isDev: boolean;
+  admin?: boolean;
+}): string {
   const directives: Directives = {
     "default-src": ["'self'"],
     // 'strict-dynamic' : seuls les scripts portant le nonce (et ceux qu'ils chargent) s'exécutent.
@@ -25,7 +33,12 @@ export function buildCsp({ nonce, isDev }: { nonce: string; isDev: boolean }): s
     "media-src": ["'self'", "https://*.public.blob.vercel-storage.com"],
     "font-src": ["'self'"],
     // Sentry passe par un tunnel same-origin (/monitoring) : pas besoin d'autoriser son domaine.
-    "connect-src": ["'self'", ...(isDev ? ["ws:"] : [])],
+    "connect-src": [
+      "'self'",
+      ...(isDev ? ["ws:"] : []),
+      // Admin uniquement : envoi direct des photos/vidéos du navigateur vers Vercel Blob.
+      ...(admin ? ["https://vercel.com", "https://*.blob.vercel-storage.com"] : []),
+    ],
     // Cloudflare Turnstile (anti-robot des formulaires publics) s'affiche dans une iframe.
     "frame-src": ["https://challenges.cloudflare.com"],
     "object-src": ["'none'"],

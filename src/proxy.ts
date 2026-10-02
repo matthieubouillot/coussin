@@ -6,14 +6,17 @@ import { resolveAdminRouting } from "@/lib/security/admin-path";
 // Aucune décision d'autorisation ici : elle est prise côté serveur, au plus près des données.
 export function proxy(request: NextRequest) {
   const nonce = generateNonce();
-  const csp = buildCsp({ nonce, isDev: process.env.NODE_ENV === "development" });
+  const routing = resolveAdminRouting(request.nextUrl.pathname, process.env.ADMIN_PATH);
+  const csp = buildCsp({
+    nonce,
+    isDev: process.env.NODE_ENV === "development",
+    admin: routing.kind === "rewrite",
+  });
 
   // Next.js lit la CSP de la requête pour appliquer le nonce à ses propres scripts.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", csp);
-
-  const routing = resolveAdminRouting(request.nextUrl.pathname, process.env.ADMIN_PATH);
 
   let response: NextResponse;
   if (routing.kind === "not-found") {
