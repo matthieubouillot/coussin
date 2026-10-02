@@ -19,6 +19,9 @@ export default defineConfig({
   // On teste le build de production (CSP sans unsafe-eval, en-têtes réels).
   webServer: {
     command: `pnpm build && pnpm start --port ${PORT}`,
+    // Pixel fictif : permet de vérifier que rien ne part vers TikTok avant consentement, et que le
+    // pixel se charge après. Les appels serveur vers TikTok échouent sans conséquence.
+    env: { TIKTOK_PIXEL_ID: "CTESTPIXEL00000000000", TIKTOK_EVENTS_API_TOKEN: "jeton-de-test" },
     url: `http://localhost:${PORT}`,
     timeout: 240_000,
     reuseExistingServer: !process.env.CI,

@@ -1,17 +1,47 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { checkoutAction } from "@/app/(shop)/panier/checkout-action";
+import { useMarketing } from "@/components/marketing/MarketingProvider";
+import { ATTRIBUTION_PARAMS, newEventId, type MarketingEvent } from "@/lib/marketing/events";
 
 /**
  * Validation de commande. Le libellé du bouton et l'acceptation des CGV sont imposés par la loi
  * (art. L221-14 du Code de la consommation) ; l'acceptation est revérifiée côté serveur.
+ * La provenance de la visite (UTM) et l'identifiant d'événement partent avec le formulaire.
  */
-export function CheckoutForm() {
+export function CheckoutForm({ cart }: { cart: Pick<MarketingEvent, "valueCents" | "contents"> }) {
   const [state, formAction, pending] = useActionState(checkoutAction, null);
+  const { track, attribution } = useMarketing();
+  const form = useRef<HTMLFormElement>(null);
+
+  // Champs cachés remplis dès l'affichage : ils font ainsi partie du formulaire envoyé.
+  useEffect(() => {
+    const f = form.current;
+    if (!f) return;
+    (f.elements.namedItem("marketingEventId") as HTMLInputElement).value = newEventId();
+    const current = attribution();
+    for (const key of ATTRIBUTION_PARAMS)
+      (f.elements.namedItem(key) as HTMLInputElement).value = current[key] ?? "";
+  }, [attribution]);
+
+  function onSubmit() {
+    const eventId = (form.current?.elements.namedItem("marketingEventId") as HTMLInputElement | null)?.value;
+    if (eventId) track({ name: "InitiateCheckout", eventId, ...cart });
+  }
+
   return (
-    <form action={formAction} className="mt-8 space-y-4 rounded-2xl bg-white p-4">
+    <form
+      ref={form}
+      action={formAction}
+      onSubmit={onSubmit}
+      className="mt-8 space-y-4 rounded-2xl bg-white p-4"
+    >
+      <input type="hidden" name="marketingEventId" defaultValue="" />
+      {ATTRIBUTION_PARAMS.map((key) => (
+        <input key={key} type="hidden" name={key} defaultValue="" />
+      ))}
       <label className="flex items-start gap-3 text-sm">
         <input type="checkbox" name="acceptCgv" required className="accent-cocoa mt-1 size-5" />
         <span>

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  CONSENT_MAX_AGE_SECONDS,
-  CONSENT_POLICY_VERSION,
-  hasConsent,
-  parseConsentCookie,
-} from "@/lib/consent";
+import { CONSENT_MAX_AGE_SECONDS, CONSENT_POLICY_VERSION, hasConsent } from "@/lib/consent";
+import { parseConsentCookie } from "@/lib/consent-schema";
 
 const valid = (at: number, ads = true) =>
   JSON.stringify({ v: CONSENT_POLICY_VERSION, id: "abcdefgh-1234", choices: { ads }, at });

@@ -60,6 +60,13 @@
 - [ ] **Upstash QStash** : créer le compte et renseigner `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`.
 - [ ] Générer `SECRETS_ENCRYPTION_KEY` (`openssl rand -base64 32`) et la conserver précieusement (sans elle, les jetons fournisseur stockés sont illisibles — il suffirait alors de reconnecter les comptes).
 
+## Publicité (TikTok, plus tard Meta)
+
+- [ ] **TikTok Ads Manager** : créer le pixel (Events Manager) et un jeton Events API → `TIKTOK_PIXEL_ID`, `TIKTOK_EVENTS_API_TOKEN`.
+- [ ] Après activation : vérifier dans l'outil de test d'événements TikTok que ViewContent, AddToCart, InitiateCheckout et **Purchase** arrivent bien dédupliqués (navigateur + serveur). Si ton compte utilise encore « CompletePayment », me le dire (une ligne à changer).
+- [ ] Vérifier dans le navigateur (outils de développement → Cookies) la liste exacte des cookies déposés par TikTok et la comparer à la politique cookies.
+- [ ] Meta : désactivé. Pour l'activer plus tard : `META_PIXEL_ID`, `META_CAPI_TOKEN`, puis la case dans Réglages.
+
 ## Administration
 
 - [ ] Installer une application TOTP (Aegis, 1Password, Google Authenticator…) et **conserver les codes de secours** hors du téléphone.

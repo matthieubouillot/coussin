@@ -1,10 +1,47 @@
+import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
+import { TrackEvent } from "@/components/marketing/TrackEvent";
 import { BuyBox, type BuyBoxVariant } from "@/components/shop/BuyBox";
 import { ProductGallery } from "@/components/shop/ProductGallery";
 import { deliveryWindow } from "@/server/catalog/availability";
-import { getActiveBundles, getApprovedReviews, getMainProduct } from "@/server/catalog/catalog";
+import {
+  getActiveBundles,
+  getActiveShippingRate,
+  getApprovedReviews,
+  getMainProduct,
+} from "@/server/catalog/catalog";
 import { describeBundle } from "@/server/catalog/describe-bundle";
+import { productJsonLd, serializeJsonLd } from "@/server/seo/product-jsonld";
+import { isPlaceholder } from "@/server/settings/legal-identity";
 import { getShopConfig } from "@/server/settings/settings";
+import { env } from "@/server/env";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const [product, config] = await Promise.all([getMainProduct(), getShopConfig()]);
+  if (!product) return { title: config.shopName };
+  const minPrice = Math.min(...product.variants.map((v) => v.priceCents));
+  const description = `${product.tagline} Coussin auto-chauffant sans électricité pour chats et chiens, dès ${(minPrice / 100).toFixed(2).replace(".", ",")} €. Livraison suivie en France, retour 14 jours.`;
+  const image = product.media.find((m) => m.kind === "IMAGE");
+  return {
+    title: { absolute: `${product.name} | ${config.shopName}` },
+    description,
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      locale: "fr_FR",
+      siteName: config.shopName,
+      title: product.name,
+      description,
+      url: "/",
+      // Sans photo produit, l'image générée par opengraph-image.tsx est utilisée.
+      ...(image
+        ? { images: [{ url: image.blobUrl, width: image.width, height: image.height, alt: image.alt }] }
+        : {}),
+    },
+    twitter: { card: "summary_large_image", title: product.name, description },
+  };
+}
 
 // Page d'accueil = page produit (boutique « one-product »).
 export default async function ProductPage() {
@@ -23,12 +60,42 @@ export default async function ProductPage() {
     );
   }
 
-  const reviews = await getApprovedReviews(product.id);
+  const [reviews, shippingRate, nonce] = await Promise.all([
+    getApprovedReviews(product.id),
+    getActiveShippingRate(),
+    headers().then((h) => h.get("x-nonce") ?? undefined),
+  ]);
+  const jsonLd = productJsonLd({
+    url: `${env().NEXT_PUBLIC_SITE_URL}/`,
+    name: product.name,
+    description: product.tagline,
+    brand: isPlaceholder(config.shopName) ? null : config.shopName,
+    productGroupId: product.slug,
+    images: product.media.filter((m) => m.kind === "IMAGE").map((m) => m.blobUrl),
+    variants: product.variants.map((v) => ({
+      sku: v.sku,
+      label: v.label,
+      sizeName: v.label.split(" ")[0] ?? v.label,
+      priceCents: v.priceCents,
+      available: v.availability.available,
+      deliveryDaysMin: v.availability.available ? v.availability.deliveryDaysMin : null,
+      deliveryDaysMax: v.availability.available ? v.availability.deliveryDaysMax : null,
+    })),
+    shipping: shippingRate,
+    reviews: reviews.map((r) => ({
+      author: r.displayName,
+      rating: r.rating,
+      body: r.body,
+      date: r.publishedAt,
+    })),
+  });
   const labels = new Map(product.variants.map((v) => [v.id, v.label.split(" ")[0] ?? v.label]));
   const bundleTexts = bundles.map((b) => describeBundle(b, labels)).filter((t): t is string => t !== null);
 
   const buyBoxVariants: BuyBoxVariant[] = product.variants.map((v) => ({
     id: v.id,
+    sku: v.sku,
+    productName: product.name,
     label: v.label,
     recommendedFor: v.recommendedFor,
     priceCents: v.priceCents,
@@ -43,6 +110,23 @@ export default async function ProductPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+      />
+      <TrackEvent
+        event={{
+          name: "ViewContent",
+          valueCents: product.variants[0]?.priceCents ?? 0,
+          contents: product.variants.map((v) => ({
+            id: v.sku,
+            name: `${product.name} — ${v.label}`,
+            quantity: 1,
+            priceCents: v.priceCents,
+          })),
+        }}
+      />
       <section className="grid gap-8 lg:grid-cols-2 lg:gap-12" aria-labelledby="product-title">
         <ProductGallery media={product.media} productName={product.name} />
         <div className="space-y-6">

@@ -83,3 +83,17 @@ flowchart TD
 | Coûts CJ en USD convertis avec un taux saisi dans l'admin                                                                 | Pas de taux codé en dur ni de service de change externe.                              |
 | AliExpress : `try_to_pay` (paiement auto avec le moyen enregistré), désactivable                                          | Équivalent DSers ; sinon commande « à payer » signalée par email et dans l'admin.     |
 | CJ hors production : `isSandbox=1`                                                                                        | Tests de bout en bout sans débit réel.                                                |
+
+## Marketing, SEO et performance (phase 6)
+
+| Choix                                                                                          | Pourquoi                                                                                             |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Pixel (navigateur) + API serveur pour chaque événement, même `eventId`                         | La régie déduplique ; l'API serveur rattrape les pixels bloqués par les navigateurs.                 |
+| Achat envoyé par le serveur depuis le webhook (consentement figé sur la commande)              | Le seul moment où l'achat est certain ; indépendant du retour du client sur la page de confirmation. |
+| Consentement lu par le proxy pour construire la CSP                                            | Sans consentement, la CSP bloque même une injection accidentelle de pixel.                           |
+| UTM en mémoire, cookie seulement avec consentement                                             | Attribution des ventes conservée sans stocker d'information sur l'appareil des refusants.            |
+| ProductGroup + une variante par taille (schema.org), note moyenne seulement avec de vrais avis | Format recommandé par Google pour les variantes ; aucune donnée inventée.                            |
+| Une seule police web (titres), police système pour le texte                                    | Affichage immédiat du texte sur mobile.                                                              |
+| Zod hors du bundle navigateur                                                                  | −90 Ko de JavaScript ; la validation reste côté serveur.                                             |
+
+Lighthouse mobile (build de production local, 2 octobre 2026) : performance 96, accessibilité 100, bonnes pratiques 100, SEO 100 sur l'accueil et les pages légales (le panier est volontairement non indexable). LCP réel mesuré dans le navigateur : 0,12 s ; LCP simulé 4G lente : 2,7 s.

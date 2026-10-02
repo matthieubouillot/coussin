@@ -8,7 +8,7 @@
   --color-cocoa: #6b4a35;
   --color-sage: #5f7360;
   --font-serif: var(--font-serif), Georgia, serif;
-  --font-sans: var(--font-sans), system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 /* Mise en forme des pages légales : lisibilité avant tout. */

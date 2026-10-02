@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCsp, generateNonce } from "@/lib/security/csp";
 import { resolveAdminRouting } from "@/lib/security/admin-path";
+import { CONSENT_COOKIE_NAME, hasConsent } from "@/lib/consent";
+import { parseConsentCookie } from "@/lib/consent-schema";
 
 // Proxy volontairement léger (recommandation Next 16) : nonce CSP + masquage de l'admin.
 // Aucune décision d'autorisation ici : elle est prise côté serveur, au plus près des données.
@@ -11,6 +13,8 @@ export function proxy(request: NextRequest) {
     nonce,
     isDev: process.env.NODE_ENV === "development",
     admin: routing.kind === "rewrite",
+    // Sans consentement publicité, la CSP bloque en plus tout appel vers les régies.
+    ads: hasConsent(parseConsentCookie(request.cookies.get(CONSENT_COOKIE_NAME)?.value), "ads"),
   });
 
   // Next.js lit la CSP de la requête pour appliquer le nonce à ses propres scripts.

@@ -6,11 +6,10 @@ import {
   CONSENT_COOKIE_NAME,
   CONSENT_MAX_AGE_SECONDS,
   CONSENT_POLICY_VERSION,
-  consentChoicesSchema,
-  parseConsentCookie,
   type ConsentChoices,
   type ConsentCookie,
 } from "@/lib/consent";
+import { consentChoicesSchema, parseConsentCookie } from "@/lib/consent-schema";
 import { db } from "@/server/db";
 import { checkRateLimit } from "@/server/security/ratelimit";
 

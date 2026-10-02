@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { z } from "zod";
 import { db } from "@/server/db";
+import { TrackEvent } from "@/components/marketing/TrackEvent";
 import { AfterPayment } from "./AfterPayment";
 
 export const metadata: Metadata = { title: "Confirmation de commande", robots: { index: false } };
@@ -18,7 +19,23 @@ export default async function ConfirmationPage({ searchParams }: PageProps<"/com
   const order = parsed.success
     ? await db.order.findUnique({
         where: { stripeCheckoutSessionId: parsed.data },
-        select: { number: true, status: true, email: true },
+        select: {
+          number: true,
+          status: true,
+          email: true,
+          adsConsent: true,
+          marketingEventId: true,
+          totalCents: true,
+          items: {
+            select: {
+              sku: true,
+              productName: true,
+              variantLabel: true,
+              quantity: true,
+              unitPriceCents: true,
+            },
+          },
+        },
       })
     : null;
 
@@ -51,6 +68,21 @@ export default async function ConfirmationPage({ searchParams }: PageProps<"/com
         </div>
       ) : (
         <div role="status">
+          {order.adsConsent && order.marketingEventId && (
+            <TrackEvent
+              event={{
+                name: "Purchase",
+                eventId: order.marketingEventId,
+                valueCents: order.totalCents,
+                contents: order.items.map((i) => ({
+                  id: i.sku,
+                  name: `${i.productName} — ${i.variantLabel}`,
+                  quantity: i.quantity,
+                  priceCents: i.unitPriceCents,
+                })),
+              }}
+            />
+          )}
           <h1 className="text-cocoa font-serif text-3xl">Merci, votre commande est confirmée</h1>
           <p className="mt-4">
             Commande <strong>{order.number}</strong>. Un email de confirmation avec votre facture a été envoyé

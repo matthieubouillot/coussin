@@ -1,5 +1,6 @@
 import "server-only";
 import type Stripe from "stripe";
+import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/server/db";
 import { issueInvoiceInTx } from "@/server/invoices/issue-invoice";
 import { finalizePaidOrder } from "@/server/orders/finalize-paid-order";
@@ -161,6 +162,8 @@ async function handleCheckoutExpired(event: Stripe.Event, session: Stripe.Checko
         actorType: "WEBHOOK",
         actorId: event.id,
         reason: "Session de paiement expirée sans paiement",
+        // Panier abandonné : les identifiants publicitaires n'ont plus de raison d'être conservés.
+        data: { marketingContext: Prisma.DbNull },
       });
     });
   } catch (error) {

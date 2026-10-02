@@ -59,6 +59,7 @@ export async function findUsablePromo(rawCode: string, now = new Date()): Promis
 
 export type CartLineView = {
   variantId: string;
+  sku: string;
   productName: string;
   label: string;
   quantity: number;
@@ -105,6 +106,7 @@ export async function getCartView(cart?: CartCookie): Promise<CartView> {
     if (!availability.available) continue;
     lines.push({
       variantId: variant.id,
+      sku: variant.sku,
       productName: variant.product.name,
       label: variant.label,
       quantity: item.quantity,

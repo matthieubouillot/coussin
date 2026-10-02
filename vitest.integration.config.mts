@@ -35,6 +35,8 @@ export default defineConfig({
       CRON_SECRET: "cron-secret-integration-test-0123456789abcdef",
       VERCEL_ENV: "development",
       ADMIN_ALERT_EMAIL: "alertes@example.test",
+      TIKTOK_PIXEL_ID: "CTESTPIXEL00000000000",
+      TIKTOK_EVENTS_API_TOKEN: "jeton-de-test",
       LOCAL_DATA_DIR: path.join(os.tmpdir(), `coussin-integration-${process.pid}`),
     },
   },

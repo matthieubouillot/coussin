@@ -1,12 +1,15 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { useMarketing } from "@/components/marketing/MarketingProvider";
 import Link from "next/link";
 import { addToCartAction } from "@/app/(shop)/panier/actions";
 import { formatEuros } from "@/lib/money";
 
 export type BuyBoxVariant = {
   id: string;
+  sku: string;
+  productName: string;
   label: string;
   recommendedFor: string;
   priceCents: number;
@@ -30,6 +33,28 @@ export function BuyBox({
   const [state, formAction, pending] = useActionState(addToCartAction, null);
   const groupId = useId();
   const selected = variants.find((v) => v.id === selectedId);
+  const { track } = useMarketing();
+  const quantityRef = useRef<HTMLSelectElement>(null);
+
+  // AddToCart uniquement après confirmation du serveur (ajout réellement effectué).
+  useEffect(() => {
+    if (!state?.ok || !selected) return;
+    const quantity = Number(quantityRef.current?.value ?? 1);
+    track({
+      name: "AddToCart",
+      valueCents: selected.priceCents * quantity,
+      contents: [
+        {
+          id: selected.sku,
+          name: `${selected.productName} — ${selected.label}`,
+          quantity,
+          priceCents: selected.priceCents,
+        },
+      ],
+    });
+    // Un événement par réponse du serveur.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   if (!selected) return null;
 
@@ -84,6 +109,7 @@ export function BuyBox({
         <label className="flex flex-col text-sm font-medium">
           Quantité
           <select
+            ref={quantityRef}
             name="quantity"
             defaultValue="1"
             className="border-cocoa/30 mt-1 min-h-11 rounded-lg border bg-white px-3"

@@ -39,6 +39,9 @@ model ShopSettings {
   usdToEurMicros             Int?
   /// AliExpress : tenter le paiement automatique avec le moyen enregistré sur le compte (try_to_pay).
   aliexpressAutoPay          Boolean  @default(true)
+  /// Régies publicitaires actives (en plus de leurs clés en variables d'environnement).
+  tiktokEnabled              Boolean  @default(true)
+  metaEnabled                Boolean  @default(false)
   cgvVersion                 String
   updatedAt                  DateTime @updatedAt
 }
@@ -296,6 +299,11 @@ model Order {
   ttclid                  String?
   /// Identifiant partagé pixel / Events API pour la déduplication.
   marketingEventId        String?
+  /// Consentement publicité du client au moment de la commande (conditionne tout envoi aux régies).
+  adsConsent              Boolean             @default(false)
+  /// Identifiants publicitaires (cookies _ttp/_fbp, IP, navigateur), uniquement avec consentement ;
+  /// effacés dès l'envoi de l'événement d'achat (minimisation).
+  marketingContext        Json?
   deliveredAt             DateTime?
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt

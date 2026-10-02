@@ -102,6 +102,8 @@ export async function saveSettingsAction(_prev: ActionState, formData: FormData)
     cgvVersion: d.cgvVersion,
     usdToEurMicros: d.usdToEur,
     aliexpressAutoPay: checkbox(formData, "aliexpressAutoPay"),
+    tiktokEnabled: checkbox(formData, "tiktokEnabled"),
+    metaEnabled: checkbox(formData, "metaEnabled"),
   };
   await db.shopSettings.upsert({ where: { id: "singleton" }, create: data, update: data });
   await audit("settings.update", {

@@ -131,9 +131,21 @@ export default async function Confidentialite() {
       </p>
       <h3>Partenaires publicitaires</h3>
       <p>
-        Uniquement si vous l&apos;acceptez, TikTok (et Meta s&apos;il est activé) reçoivent des informations
-        sur votre navigation et vos achats afin de mesurer nos campagnes. Voir la{" "}
-        <a href="/cookies">politique cookies</a>.
+        Uniquement si vous l&apos;acceptez (bandeau cookies), TikTok (et Meta s&apos;il est activé) reçoivent,
+        depuis votre navigateur et depuis notre serveur, les événements suivants : consultation du produit,
+        ajout au panier, début de paiement et achat (montant, articles). Pour relier ces événements à une
+        publicité, sont aussi transmis : vos identifiants publicitaires (cookies de la régie, identifiant de
+        clic), votre adresse IP, votre navigateur et, pour un achat, votre email et votre téléphone{" "}
+        <strong>hachés</strong>
+        (transformés de façon irréversible). Ces régies agissent comme responsables de traitement pour leurs
+        propres usages et peuvent traiter ces données hors de l&apos;Union européenne, avec les garanties
+        prévues par leurs conditions (clauses contractuelles types). Vous pouvez retirer votre accord à tout
+        moment via « Gérer mes cookies ». Voir aussi la <a href="/cookies">politique cookies</a>.
+      </p>
+      <p>
+        Sans consentement, seule la provenance de la visite indiquée dans l&apos;adresse de la page
+        (paramètres « utm », non nominatifs) est associée à la commande, pour savoir quelle campagne a généré
+        la vente (intérêt légitime) ; elle n&apos;est jamais transmise aux régies.
       </p>
 
       <h2>Vos droits</h2>

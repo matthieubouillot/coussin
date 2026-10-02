@@ -6,7 +6,10 @@ import { sendEmailOnce } from "@/server/email/mailer";
 import { emailShop } from "@/server/email/shop-identity";
 import { formatEuros } from "@/lib/money";
 import { ensureInvoicePdf } from "@/server/invoices/issue-invoice";
+import { Prisma } from "@/generated/prisma/client";
 import { scheduleFulfillment } from "@/server/fulfillment/queue";
+import { marketingContextSchema } from "@/server/marketing/context";
+import { sendServerEvent } from "@/server/marketing/destinations";
 import { stripe } from "@/server/stripe/stripe";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -92,6 +95,54 @@ export async function finalizePaidOrder(orderId: string): Promise<void> {
     ],
   );
 
+  await sendPurchaseEvent(order);
+
   // L'envoi au fournisseur est asynchrone : il ne doit jamais retarder ni faire échouer le webhook.
   if (order.status === "PAID") await scheduleFulfillment(order.id);
+}
+
+/**
+ * Achat envoyé aux régies (même eventId que le pixel de la page de confirmation), uniquement si le
+ * client avait consenti. Le contexte publicitaire est ensuite effacé : il ne sert qu'une fois.
+ */
+async function sendPurchaseEvent(order: {
+  id: string;
+  adsConsent: boolean;
+  marketingContext: Prisma.JsonValue;
+  marketingEventId: string | null;
+  totalCents: number;
+  email: string;
+  phone: string | null;
+  customerId: string | null;
+  items: {
+    sku: string;
+    productName: string;
+    variantLabel: string;
+    quantity: number;
+    unitPriceCents: number;
+  }[];
+}): Promise<void> {
+  const context = marketingContextSchema.safeParse(order.marketingContext);
+  if (!order.adsConsent || !context.success || !order.marketingEventId) return;
+  // Effacé d'abord : un rejeu de la finalisation ne renverra pas l'événement.
+  const cleared = await db.order.updateMany({
+    where: { id: order.id, NOT: { marketingContext: { equals: Prisma.DbNull } } },
+    data: { marketingContext: Prisma.DbNull },
+  });
+  if (cleared.count !== 1) return;
+  await sendServerEvent(
+    {
+      name: "Purchase",
+      eventId: order.marketingEventId,
+      valueCents: order.totalCents,
+      contents: order.items.map((i) => ({
+        id: i.sku,
+        name: `${i.productName} — ${i.variantLabel}`,
+        quantity: i.quantity,
+        priceCents: i.unitPriceCents,
+      })),
+    },
+    context.data,
+    { email: order.email, phone: order.phone, externalId: order.customerId },
+  );
 }

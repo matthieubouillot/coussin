@@ -153,7 +153,17 @@ export default async function CartPage() {
         </dl>
       </div>
 
-      <CheckoutForm />
+      <CheckoutForm
+        cart={{
+          valueCents: totals.totalCents,
+          contents: cart.lines.map((l) => ({
+            id: l.sku,
+            name: `${l.productName} — ${l.label}`,
+            quantity: l.quantity,
+            priceCents: l.unitPriceCents,
+          })),
+        }}
+      />
     </main>
   );
 }

@@ -1,5 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { after } from "next/server";
 import type Stripe from "stripe";
 import { db } from "@/server/db";
 import { env } from "@/server/env";
@@ -8,6 +9,9 @@ import { generateOrderNumber } from "@/server/orders/order-number";
 import { isPlaceholder } from "@/server/settings/legal-identity";
 import { getShopConfig } from "@/server/settings/settings";
 import { stripe } from "@/server/stripe/stripe";
+import type { Attribution } from "@/lib/marketing/events";
+import type { MarketingContext } from "@/server/marketing/context";
+import { sendServerEvent } from "@/server/marketing/destinations";
 
 export type CheckoutResult = { ok: true; url: string } | { ok: false; message: string };
 
@@ -23,7 +27,18 @@ function isUniqueViolation(error: unknown): boolean {
  * Les montants envoyés à Stripe sont ceux recalculés ici depuis la base ; la commande ne passera
  * PAID que par le webhook signé, qui revérifie que Stripe a encaissé exactement ce total.
  */
-export async function createCheckout(options: { siteUrl: string }): Promise<CheckoutResult> {
+export type CheckoutMarketing = {
+  /** Identifiant de l'événement InitiateCheckout déjà envoyé par le pixel (déduplication). */
+  initiateCheckoutEventId: string | null;
+  attribution: Attribution;
+  /** Contexte publicitaire, présent uniquement si le client a consenti. */
+  context: MarketingContext | null;
+};
+
+export async function createCheckout(options: {
+  siteUrl: string;
+  marketing: CheckoutMarketing;
+}): Promise<CheckoutResult> {
   const [cart, config, shipping] = await Promise.all([
     getCartView(),
     getShopConfig(),
@@ -44,7 +59,24 @@ export async function createCheckout(options: { siteUrl: string }): Promise<Chec
     return { ok: false, message: "Le paiement est momentanément indisponible." };
   }
 
-  const order = await createPendingOrder(cart, config.taxMode, config.cgvVersion);
+  const order = await createPendingOrder(cart, config.taxMode, config.cgvVersion, options.marketing);
+  if (options.marketing.context) {
+    const context = options.marketing.context;
+    const event = {
+      name: "InitiateCheckout" as const,
+      eventId: options.marketing.initiateCheckoutEventId ?? `ic${order.marketingEventId}`,
+      valueCents: order.totalCents,
+      contents: cart.lines.map((l) => ({
+        id: l.sku,
+        name: `${l.productName} — ${l.label}`,
+        quantity: l.quantity,
+        priceCents: l.unitPriceCents,
+      })),
+      pageUrl: `${options.siteUrl}/panier`,
+    };
+    // Après la réponse : l'envoi à la régie ne retarde jamais la redirection vers le paiement.
+    after(() => sendServerEvent(event, context));
+  }
   const session = await createStripeSession(order, cart, options.siteUrl);
 
   await db.order.update({ where: { id: order.id }, data: { stripeCheckoutSessionId: session.id } });
@@ -56,6 +88,7 @@ async function createPendingOrder(
   cart: CartView,
   taxMode: "FRANCHISE_293B" | "STANDARD",
   cgvVersion: string,
+  marketing: CheckoutMarketing,
 ) {
   const { totals } = cart;
   const promo = totals.promo
@@ -91,7 +124,17 @@ async function createPendingOrder(
           estimatedDeliveryMax,
           cgvAcceptedAt: new Date(),
           cgvVersion,
-          marketingEventId: randomUUID(),
+          marketingEventId: randomUUID().replace(/-/g, ""),
+          // Provenance (UTM) : conservée pour savoir quelle publicité a vendu, consentement ou non.
+          utmSource: marketing.attribution.utm_source,
+          utmMedium: marketing.attribution.utm_medium,
+          utmCampaign: marketing.attribution.utm_campaign,
+          utmContent: marketing.attribution.utm_content,
+          utmTerm: marketing.attribution.utm_term,
+          // Identifiants publicitaires : seulement avec consentement.
+          ttclid: marketing.context ? marketing.attribution.ttclid : undefined,
+          adsConsent: marketing.context !== null,
+          marketingContext: marketing.context ?? undefined,
           items: {
             create: cart.lines.map((l) => ({
               variantId: l.variantId,

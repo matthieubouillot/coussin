@@ -20,12 +20,14 @@ type Rule = { limit: number; window: Window };
 export const RATE_LIMITS = {
   cartUpdate: { limit: 60, window: "1 m" },
   promoCode: { limit: 10, window: "10 m" },
-  consent: { limit: 20, window: "1 m" },
+  // Généreux : de nombreux clients peuvent partager une IP (opérateurs mobiles, entreprises).
+  consent: { limit: 60, window: "1 m" },
   checkout: { limit: 10, window: "10 m" },
   orderTracking: { limit: 10, window: "10 m" },
   contact: { limit: 5, window: "10 m" },
   withdrawal: { limit: 5, window: "10 m" },
   // Par IP : contre l'attaque de nombreux comptes. Le verrouillage par compte (5 échecs) est dans loginAction.
+  marketing: { limit: 60, window: "1 m" },
   adminLogin: { limit: 10, window: "15 m" },
   adminTotp: { limit: 10, window: "15 m" },
 } as const satisfies Record<string, Rule>;

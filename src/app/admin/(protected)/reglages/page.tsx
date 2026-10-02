@@ -6,6 +6,7 @@ import { requireAdmin } from "@/server/auth/require-admin";
 import { getShopConfig } from "@/server/settings/settings";
 import { isPlaceholder } from "@/server/settings/legal-identity";
 import { db } from "@/server/db";
+import { env } from "@/server/env";
 import { saveSettingsAction } from "./actions";
 
 const pct = (bps: number) => String(bps / 100).replace(".", ",");
@@ -171,6 +172,34 @@ export default async function SettingsPage() {
               commande à payer à la main, signalée par email)
             </label>
           </Grid>
+        </Card>
+
+        <Card title="Publicité (uniquement pour les visiteurs ayant accepté les cookies publicitaires)">
+          <div className="space-y-2 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="tiktokEnabled" defaultChecked={row?.tiktokEnabled ?? true} />{" "}
+              TikTok : pixel + Events API{" "}
+              <span className="text-stone-500">
+                (
+                {env().TIKTOK_PIXEL_ID && env().TIKTOK_EVENTS_API_TOKEN
+                  ? "clés présentes"
+                  : "clés absentes : inactif"}
+                )
+              </span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="metaEnabled" defaultChecked={row?.metaEnabled ?? false} /> Meta :
+              pixel + Conversions API{" "}
+              <span className="text-stone-500">
+                ({env().META_PIXEL_ID && env().META_CAPI_TOKEN ? "clés présentes" : "clés absentes : inactif"}
+                )
+              </span>
+            </label>
+            <p className="text-stone-500">
+              Avant d&apos;activer Meta, mettre à jour la politique cookies et la politique de
+              confidentialité.
+            </p>
+          </div>
         </Card>
 
         <Card title="Seuils et alertes">

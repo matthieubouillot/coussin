@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useId, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { clearAdCookies } from "@/components/marketing/pixels";
 import { saveConsentAction } from "@/app/consent-actions";
 import {
   ACCEPT_ALL,
@@ -26,6 +28,7 @@ export function CookieConsent({ initialConsent }: { initialConsent: ConsentCooki
   const [draft, setDraft] = useState<ConsentChoices>(initialConsent?.choices ?? REFUSE_ALL);
   const [pending, startTransition] = useTransition();
   const titleId = useId();
+  const router = useRouter();
 
   useEffect(() => {
     const reopen = () => {
@@ -39,10 +42,19 @@ export function CookieConsent({ initialConsent }: { initialConsent: ConsentCooki
 
   function save(choices: ConsentChoices) {
     startTransition(async () => {
+      const hadAds = consent?.choices.ads === true;
       const saved = await saveConsentAction(choices);
       if (saved) setConsent(saved);
       setOpen(false);
       setCustomizing(false);
+      if (hadAds && !choices.ads) {
+        // Retrait du consentement : effacer les cookies des régies et recharger sans leurs scripts.
+        clearAdCookies();
+        window.location.reload();
+        return;
+      }
+      // Nouveau choix : la page est recalculée côté serveur (CSP, pixels) sans rechargement complet.
+      if (choices.ads !== hadAds) router.refresh();
     });
   }
 

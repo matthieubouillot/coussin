@@ -2,7 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createCheckout } from "@/server/checkout/create-checkout";
+import { cookies } from "next/headers";
+import { ATTRIBUTION_COOKIE, ATTRIBUTION_PARAMS, type Attribution } from "@/lib/marketing/events";
+import { attributionSchema } from "@/lib/marketing/schemas";
+import { createCheckout, type CheckoutMarketing } from "@/server/checkout/create-checkout";
+import { marketingContextFromRequest } from "@/server/marketing/context";
 import { env } from "@/server/env";
 import { checkRateLimit } from "@/server/security/ratelimit";
 import { isStripeConfigured } from "@/server/stripe/stripe";
@@ -24,7 +28,10 @@ export async function checkoutAction(
 
   let url: string;
   try {
-    const result = await createCheckout({ siteUrl: env().NEXT_PUBLIC_SITE_URL });
+    const result = await createCheckout({
+      siteUrl: env().NEXT_PUBLIC_SITE_URL,
+      marketing: await checkoutMarketing(formData),
+    });
     if (!result.ok) return { message: result.message };
     url = result.url;
   } catch (error) {
@@ -36,4 +43,32 @@ export async function checkoutAction(
   }
   // redirect() lève une exception de contrôle : il doit rester hors du try/catch.
   redirect(url);
+}
+
+/** Provenance : celle de la visite en cours (formulaire), sinon celle mémorisée avec consentement. */
+async function checkoutMarketing(formData: FormData): Promise<CheckoutMarketing> {
+  const fromForm: Attribution = {};
+  for (const key of ATTRIBUTION_PARAMS) {
+    const value = formData.get(key);
+    if (typeof value === "string" && value) fromForm[key] = value;
+  }
+  let attribution = attributionSchema.safeParse(fromForm).data ?? {};
+  if (Object.keys(attribution).length === 0) {
+    try {
+      attribution = attributionSchema.parse(
+        JSON.parse((await cookies()).get(ATTRIBUTION_COOKIE)?.value ?? "{}"),
+      );
+    } catch {
+      attribution = {};
+    }
+  }
+  const eventId = z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{8,80}$/)
+    .safeParse(formData.get("marketingEventId"));
+  return {
+    initiateCheckoutEventId: eventId.success ? eventId.data : null,
+    attribution,
+    context: await marketingContextFromRequest({ ttclid: attribution.ttclid, fbclid: attribution.fbclid }),
+  };
 }

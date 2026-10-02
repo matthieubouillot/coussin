@@ -66,8 +66,17 @@ const serverEnvSchema = z.object({
 
   BLOB_READ_WRITE_TOKEN: service,
 
-  TIKTOK_PIXEL_ID: z.string().optional(),
+  TIKTOK_PIXEL_ID: z
+    .string()
+    .regex(/^[A-Z0-9]{10,30}$/, "TIKTOK_PIXEL_ID : identifiant du pixel (lettres majuscules et chiffres)")
+    .optional(),
   TIKTOK_EVENTS_API_TOKEN: z.string().optional(),
+  // Meta (désactivé par défaut : activable dans les réglages une fois ces clés renseignées).
+  META_PIXEL_ID: z
+    .string()
+    .regex(/^\d{5,20}$/)
+    .optional(),
+  META_CAPI_TOKEN: z.string().optional(),
 
   SENTRY_DSN: z.url().optional(),
   CRON_SECRET: isProduction ? z.string().min(32) : z.string().min(32).optional(),

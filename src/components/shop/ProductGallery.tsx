@@ -14,7 +14,7 @@ export function ProductGallery({ media, productName }: { media: Media[]; product
   if (media.length === 0) {
     // Aucune photo de démonstration : tant que les vraies photos ne sont pas en ligne, on le dit.
     return (
-      <div className="text-ink/60 flex aspect-square items-center justify-center rounded-3xl bg-white p-8 text-center">
+      <div className="text-ink/75 flex aspect-square items-center justify-center rounded-3xl bg-white p-8 text-center">
         <p>
           Photos de {productName.toLowerCase()} bientôt disponibles.
           <span className="sr-only"> Aucune image pour le moment.</span>
