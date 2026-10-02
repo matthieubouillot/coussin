@@ -20,7 +20,8 @@
     "postinstall": "prisma generate",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
     "test:integration": "vitest run --config vitest.integration.config.mts",
-    "admin:create": "tsx --conditions=react-server scripts/create-admin.ts"
+    "admin:create": "tsx --conditions=react-server scripts/create-admin.ts",
+    "demo:orders": "vitest run --config vitest.scripts.config.mts scripts/demo-orders.run.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
