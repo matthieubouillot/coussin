@@ -72,6 +72,18 @@ Parcours d'achat E2E réel : `stripe listen --forward-to localhost:3100/api/webh
 
 Une clé `sk_live_` est refusée tant que `STRIPE_LIVE_ENABLED` ne vaut pas `true` (réservé à la phase 8).
 
+## Fulfillment et crons en local
+
+Sans QStash, une commande payée est transmise au fournisseur juste après la réponse du webhook ; les réessais programmés sont repris par le cron de rattrapage. Pour déclencher les crons à la main :
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/fulfillment   # rattrapage (10 min)
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/tracking      # suivi colis (horaire)
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/daily         # stock, avis J+7, seuils
+```
+
+Sans clés API fournisseur, chaque commande passe en « à passer manuellement » (alerte + actions dans l'admin).
+
 ## Base de données
 
 | Commande           | Rôle                                                      |

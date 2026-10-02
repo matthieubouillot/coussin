@@ -62,17 +62,30 @@
 | Uploads admin : jetons Vercel Blob limités (types image/vidéo, 8 Mo / 80 Mo, nom de fichier contrôlé), URL enregistrée vérifiée ; CSP élargie à Vercel Blob **sur l'admin uniquement**          | `src/app/api/admin/media-upload/route.ts`, `csp.ts` | revue                     |
 | Admin sans bandeau cookies (cookies strictement nécessaires uniquement)                                                                                                                         | `src/app/(shop)/layout.tsx`                         | E2E                       |
 
+## Mesures ajoutées (phase 5 — fulfillment)
+
+| Mesure                                                                                                                                                      | Où                                                    | Vérifié par                                              |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------- |
+| Jamais deux commandes fournisseur pour un même article : clé d'idempotence unique + réservation conditionnelle ; réponse incertaine → vérification manuelle | `src/server/fulfillment/dispatch.ts`                  | intégration (exécutions simultanées, réponse incertaine) |
+| Réponses des API fournisseur validées par Zod (tolérantes mais typées) ; aucune donnée fournisseur n'est rendue en HTML brut                                | `src/server/fulfillment/adapters/*`                   | unitaires                                                |
+| Jetons d'API fournisseur chiffrés au repos (AES-256-GCM authentifié), clé en variable d'environnement                                                       | `src/server/security/encryption.ts`, `credentials.ts` | unitaires                                                |
+| Job QStash : signature vérifiée sur le corps brut (clés courante et suivante)                                                                               | `src/app/api/jobs/fulfill/route.ts`                   | revue                                                    |
+| OAuth AliExpress : paramètre `state` anti-CSRF (cookie HttpOnly, comparaison à temps constant), réservé à l'admin authentifié                               | `src/app/api/admin/aliexpress/*`                      | revue                                                    |
+| Appels sortants uniquement vers des hôtes fixes (api-sg.aliexpress.com, developers.cjdropshipping.com) : pas de SSRF                                        | adaptateurs                                           | revue                                                    |
+| Jeton de dépôt d'avis : 256 bits aléatoires, seul le hash SHA-256 est stocké, usage unique, expiration 60 jours ; avis lié à un article réellement acheté   | `src/server/reviews/invites.ts`                       | intégration                                              |
+| Adresse transmise au fournisseur réduite au strict nécessaire (nom, adresse, téléphone)                                                                     | `address.ts`                                          | unitaires                                                |
+
 ## OWASP Top 10 (2021) — état
 
-| Risque                            | Traitement prévu                                                                                     | Phase         |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------- |
-| A01 Contrôle d'accès              | `requireAdmin()` dans chaque page / Server Action / route admin ✅, en plus du masquage              | 4 ✅          |
-| A02 Défaillances cryptographiques | HTTPS/HSTS ✅ ; jetons stockés hachés ; cookies `HttpOnly Secure SameSite`                           | 1 ✅ / 3-4    |
-| A03 Injection                     | Prisma (requêtes paramétrées), Zod partout, CSP ✅                                                   | 1 ✅ / toutes |
-| A04 Conception non sécurisée      | Prix recalculés serveur ✅, machine à états ✅, idempotence webhooks ✅                              | 2-3 ✅        |
-| A05 Mauvaise configuration        | En-têtes ✅, env validée ✅, `poweredByHeader` off ✅                                                | 1 ✅          |
-| A06 Composants vulnérables        | audit CI ✅, Dependabot ✅                                                                           | 1 ✅          |
-| A07 Authentification              | Better Auth + TOTP obligatoire ✅, verrouillage ✅, rate limiting ✅                                 | 4 ✅          |
-| A08 Intégrité logiciel/données    | Signatures Stripe/QStash/CJ vérifiées, lockfile ✅                                                   | 1 ✅ / 3-5    |
-| A09 Journalisation                | Journal d'audit ✅, Sentry sans PII ✅                                                               | 1-4 ✅        |
-| A10 SSRF                          | Appels sortants uniquement vers des hôtes fixes (fournisseurs), aucune URL fournie par l'utilisateur | 5             |
+| Risque                            | Traitement prévu                                                                                        | Phase         |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------- |
+| A01 Contrôle d'accès              | `requireAdmin()` dans chaque page / Server Action / route admin ✅, en plus du masquage                 | 4 ✅          |
+| A02 Défaillances cryptographiques | HTTPS/HSTS ✅ ; jetons stockés hachés ; cookies `HttpOnly Secure SameSite`                              | 1 ✅ / 3-4    |
+| A03 Injection                     | Prisma (requêtes paramétrées), Zod partout, CSP ✅                                                      | 1 ✅ / toutes |
+| A04 Conception non sécurisée      | Prix recalculés serveur ✅, machine à états ✅, idempotence webhooks ✅                                 | 2-3 ✅        |
+| A05 Mauvaise configuration        | En-têtes ✅, env validée ✅, `poweredByHeader` off ✅                                                   | 1 ✅          |
+| A06 Composants vulnérables        | audit CI ✅, Dependabot ✅                                                                              | 1 ✅          |
+| A07 Authentification              | Better Auth + TOTP obligatoire ✅, verrouillage ✅, rate limiting ✅                                    | 4 ✅          |
+| A08 Intégrité logiciel/données    | Signatures Stripe/QStash/CJ vérifiées, lockfile ✅                                                      | 1 ✅ / 3-5    |
+| A09 Journalisation                | Journal d'audit ✅, Sentry sans PII ✅                                                                  | 1-4 ✅        |
+| A10 SSRF                          | Appels sortants uniquement vers des hôtes fixes (fournisseurs) ✅, aucune URL fournie par l'utilisateur | 5 ✅          |

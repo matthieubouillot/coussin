@@ -34,6 +34,7 @@ export default defineConfig({
       STRIPE_WEBHOOK_SECRET: "whsec_integration_test_secret",
       CRON_SECRET: "cron-secret-integration-test-0123456789abcdef",
       VERCEL_ENV: "development",
+      ADMIN_ALERT_EMAIL: "alertes@example.test",
       LOCAL_DATA_DIR: path.join(os.tmpdir(), `coussin-integration-${process.pid}`),
     },
   },

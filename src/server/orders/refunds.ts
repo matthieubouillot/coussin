@@ -5,6 +5,7 @@ import { audit } from "@/server/audit/audit";
 import { db } from "@/server/db";
 import { sendEmailOnce } from "@/server/email/mailer";
 import { emailShop } from "@/server/email/shop-identity";
+import { cancelSupplierOrders } from "@/server/fulfillment/admin-operations";
 import { ensureInvoicePdf, issueCreditNoteInTx } from "@/server/invoices/issue-invoice";
 import { transitionOrder } from "@/server/orders/state-machine";
 import { stripe } from "@/server/stripe/stripe";
@@ -212,6 +213,7 @@ export async function cancelOrder(params: {
     }),
   );
   await audit("order.cancel", { actorId: params.adminId, targetType: "order", targetId: order.id });
+  await cancelSupplierOrders(order.id, order.number);
   if (order.status !== "PENDING_PAYMENT") {
     const amount = await refundableCents(order.id);
     if (amount > 0)

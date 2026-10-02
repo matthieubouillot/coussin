@@ -10,7 +10,7 @@ import { parisLocalToDate } from "@/lib/paris-time";
 
 export type ActionState = { ok: boolean; message: string } | null;
 
-/** Achat saisi à la main (échantillon, commande passée hors API…). Les achats API arrivent en phase 5. */
+/** Achat saisi à la main (échantillon, commande passée hors API…). Les achats passés par API sont inscrits automatiquement. */
 export async function addPurchaseAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = z

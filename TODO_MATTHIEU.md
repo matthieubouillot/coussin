@@ -49,6 +49,17 @@
 - [ ] En production : créer l'endpoint webhook `https://<domaine>/api/webhooks/stripe` avec les événements `checkout.session.completed` et `checkout.session.expired`, **version d'API `2026-09-30.endive`**.
 - [ ] Resend : vérifier le domaine d'envoi (SPF, DKIM, DMARC) et choisir l'adresse expéditrice.
 
+## Fournisseurs (fulfillment automatique)
+
+- [ ] **AliExpress Open Platform** : créer l'application « Dropshipping », la faire approuver, puis renseigner `ALIEXPRESS_APP_KEY` / `ALIEXPRESS_APP_SECRET`.
+- [ ] Déclarer l'URL de retour OAuth dans l'application AliExpress : `https://<domaine>/api/admin/aliexpress/callback`, puis cliquer **« Connecter mon compte AliExpress »** dans Réglages.
+- [ ] Enregistrer un **moyen de paiement par défaut** sur le compte AliExpress (pour le paiement automatique) — sinon chaque commande sera « à payer » (alerte email).
+- [ ] ⚠️ **Tester une première commande réelle AliExpress avec moi** : les formats de l'API AliExpress n'ont pu être vérifiés que via un SDK communautaire (documentation officielle non lisible automatiquement). Le code est tolérant et passe en manuel au moindre doute, mais une vérification réelle est indispensable avant la prod.
+- [ ] Dans chaque offre AliExpress, renseigner l'**ID produit**, l'**ID de variante** (bouton « Voir les variantes » sur la page Produit) et le **mode d'expédition** souhaité (ex. le nom du service Colissimo / Mondial Relay proposé par le vendeur).
+- [ ] **CJ Dropshipping** (secours) : générer la clé API (`CJ_API_KEY`), approvisionner le **solde du portefeuille CJ**, renseigner pour chaque offre le `vid` et le `logisticName`, et saisir le **taux USD → EUR** dans Réglages.
+- [ ] **Upstash QStash** : créer le compte et renseigner `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`.
+- [ ] Générer `SECRETS_ENCRYPTION_KEY` (`openssl rand -base64 32`) et la conserver précieusement (sans elle, les jetons fournisseur stockés sont illisibles — il suffirait alors de reconnecter les comptes).
+
 ## Administration
 
 - [ ] Installer une application TOTP (Aegis, 1Password, Google Authenticator…) et **conserver les codes de secours** hors du téléphone.

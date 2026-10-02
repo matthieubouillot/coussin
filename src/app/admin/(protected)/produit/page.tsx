@@ -14,6 +14,7 @@ import { formatEuros } from "@/lib/money";
 import { requireAdmin } from "@/server/auth/require-admin";
 import { db } from "@/server/db";
 import { env } from "@/server/env";
+import { SupplierLookup } from "@/components/admin/SupplierLookup";
 import {
   createVariantAction,
   deleteMediaAction,
@@ -22,6 +23,7 @@ import {
   saveOfferAction,
   saveProductAction,
   saveVariantAction,
+  syncStockNowAction,
 } from "./actions";
 
 const cents = (v: number) => (v / 100).toFixed(2).replace(".", ",");
@@ -198,6 +200,21 @@ export default async function ProductAdminPage() {
         </ActionForm>
       </Card>
 
+      <Card title="Fournisseurs">
+        <div className="grid gap-6 md:grid-cols-2">
+          <ActionForm
+            action={syncStockNowAction}
+            submitLabel="Synchroniser stock et prix maintenant"
+            submitClassName={secondaryButtonClass}
+          >
+            <p className="text-sm text-stone-600">
+              Automatique chaque jour à 8 h. Le prix de vente n&apos;est jamais modifié automatiquement.
+            </p>
+          </ActionForm>
+          <SupplierLookup />
+        </div>
+      </Card>
+
       {product.variants.map((variant) => (
         <Card
           key={variant.id}
@@ -370,10 +387,27 @@ export default async function ProductAdminPage() {
                       className={inputClass}
                     />
                   </Field>
+                  <Field
+                    label="Mode d'expédition fournisseur"
+                    hint="AliExpress : logistics_service_name ; CJ : logisticName"
+                  >
+                    <input
+                      name="shippingMethod"
+                      defaultValue={offer?.shippingMethod ?? ""}
+                      className={inputClass}
+                    />
+                  </Field>
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" name="active" defaultChecked={offer?.active ?? true} /> Active
                   </label>
                 </ActionForm>
+                {offer && (offer.lastSyncedAt || offer.lastSyncError) && (
+                  <p className={`mt-2 text-xs ${offer.lastSyncError ? "text-red-700" : "text-stone-500"}`}>
+                    {offer.lastSyncError
+                      ? `Dernière synchronisation en erreur : ${offer.lastSyncError}`
+                      : `Synchronisée le ${offer.lastSyncedAt?.toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}`}
+                  </p>
+                )}
                 {offer && (
                   <form action={deleteOfferAction} className="mt-2">
                     <input type="hidden" name="offerId" value={offer.id} />

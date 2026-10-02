@@ -6,6 +6,7 @@ import { sendEmailOnce } from "@/server/email/mailer";
 import { emailShop } from "@/server/email/shop-identity";
 import { formatEuros } from "@/lib/money";
 import { ensureInvoicePdf } from "@/server/invoices/issue-invoice";
+import { scheduleFulfillment } from "@/server/fulfillment/queue";
 import { stripe } from "@/server/stripe/stripe";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -16,8 +17,7 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
 
 /**
  * Étapes qui suivent le paiement, hors transaction et rejouables sans risque :
- * mode de paiement, PDF de facture, email de confirmation, alerte admin.
- * (Phase 5 : c'est ici que la commande sera transmise au fournisseur.)
+ * mode de paiement, PDF de facture, email de confirmation, alerte admin, transmission au fournisseur.
  */
 export async function finalizePaidOrder(orderId: string): Promise<void> {
   const order = await db.order.findUniqueOrThrow({
@@ -88,7 +88,10 @@ export async function finalizePaidOrder(orderId: string): Promise<void> {
     `Nouvelle commande ${order.number} — ${formatEuros(order.totalCents)}`,
     [
       order.items.map((i) => `${i.quantity} × ${i.variantLabel}`).join(", "),
-      "Transmission au fournisseur : automatique à partir de la phase 5.",
+      "Transmission au fournisseur en cours (automatique).",
     ],
   );
+
+  // L'envoi au fournisseur est asynchrone : il ne doit jamais retarder ni faire échouer le webhook.
+  if (order.status === "PAID") await scheduleFulfillment(order.id);
 }

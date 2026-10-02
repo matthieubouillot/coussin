@@ -167,6 +167,7 @@ const offerFields = {
   shippingCost: euros,
   deliveryDaysMin: z.coerce.number().int().min(1).max(90),
   deliveryDaysMax: z.coerce.number().int().min(1).max(90),
+  shippingMethod: optionalText(100),
   active: z.boolean(),
 };
 
@@ -286,4 +287,57 @@ export async function registerMediaAction(input: {
   const media = await db.productMedia.create({ data: { productId, blobUrl: url, position, ...rest } });
   await audit("media.create", { actorId: admin.id, targetType: "media", targetId: media.id });
   return done("Média ajouté.");
+}
+
+/** Bouton « Synchroniser maintenant » : stock et prix d'achat de toutes les offres. */
+export async function syncStockNowAction(_prev: ActionState): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const { syncStockAndPrices } = await import("@/server/fulfillment/stock-sync");
+  const result = await syncStockAndPrices();
+  await audit("stock.sync_manual", { actorId: admin.id, metadata: result });
+  revalidatePath("/", "layout");
+  return {
+    ok: result.failed === 0,
+    message: `${result.synced} offre(s) synchronisée(s)${result.failed ? `, ${result.failed} en erreur (voir le détail des offres)` : ""}.`,
+  };
+}
+
+export type SupplierLookupState = {
+  ok: boolean;
+  message: string;
+  variants?: { skuId: string; label: string; stock: number | null; cost: string }[];
+} | null;
+
+/** Liste les variantes d'un produit fournisseur pour retrouver l'identifiant à saisir dans l'offre. */
+export async function lookupSupplierProductAction(
+  _prev: SupplierLookupState,
+  formData: FormData,
+): Promise<SupplierLookupState> {
+  await requireAdmin();
+  const parsed = z
+    .object({
+      adapter: z.enum(["ALIEXPRESS", "CJ"]),
+      productId: z
+        .string()
+        .trim()
+        .regex(/^[A-Za-z0-9-]{3,64}$/),
+    })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, message: "Identifiant produit invalide." };
+  const { getAdapter } = await import("@/server/fulfillment/registry");
+  try {
+    const product = await getAdapter(parsed.data.adapter).getProduct(parsed.data.productId);
+    return {
+      ok: true,
+      message: product.title ? `Produit : ${product.title}` : "Variantes trouvées :",
+      variants: product.variants.map((v) => ({
+        skuId: v.skuId,
+        label: v.label,
+        stock: v.stock,
+        cost: v.unitCost === null ? "—" : `${(v.unitCost / 100).toFixed(2)} ${v.currency}`,
+      })),
+    };
+  } catch (error) {
+    return { ok: false, message: (error as Error).message };
+  }
 }

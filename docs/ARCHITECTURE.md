@@ -51,3 +51,35 @@ src/
 Admin : pages internes sous `src/app/admin`, servies sous `/<ADMIN_PATH>` ; tout lien et redirection passe par `adminHref()`. Chaque page et action commence par `requireAdmin()`.
 
 Règle : les Server Actions et routes ne font que **valider (Zod) → autoriser → appeler le métier** de `src/server/**`, écrit en fonctions testables.
+
+## Fulfillment fournisseur (phase 5)
+
+```mermaid
+flowchart TD
+    W[Webhook Stripe : commande payée] --> F[finalizePaidOrder]
+    F --> Q[scheduleFulfillment<br/>QStash ou after()]
+    Q --> D[fulfillOrder]
+    C10[Cron 10 min : rattrapage] --> D
+    D --> S{Offre suivante<br/>par priorité}
+    S --> R[Réservation QUEUED → PLACING<br/>mise à jour conditionnelle]
+    R --> A[Adaptateur<br/>AliExpress · CJ · Manuel]
+    A -->|payée| P[PLACED + registre des achats]
+    A -->|à payer| AP[AWAITING_SUPPLIER_PAYMENT + alerte]
+    A -->|temporaire| RT[QUEUED + délai 1 min → 4 h]
+    A -->|rupture / refus / 6 échecs| FB[FAILED → offre suivante + alerte<br/>+ email client si délai rallongé]
+    A -->|incertain| NC[NEEDS_CHECK : jamais rejoué auto]
+    A -->|non configuré| M[MANUAL_ACTION_REQUIRED + alerte]
+    C60[Cron horaire : suivi] --> T[SHIPPED → email par colis<br/>DELIVERED → email]
+    T --> RV[Cron quotidien : demande d'avis J+7]
+```
+
+| Choix                                                                                                                     | Pourquoi                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| La base sert de file d'attente (`SupplierOrder` : statut, tentatives, prochaine échéance) ; QStash ne fait que déclencher | Rejouable, observable dans l'admin, aucun état perdu si QStash ou une fonction tombe. |
+| Une commande fournisseur par article (= un colis)                                                                         | Bascule indépendante par taille ; multi-colis validé en phase 0 (Q11).                |
+| Réservation par `updateMany(where status = QUEUED)`                                                                       | Deux exécutions simultanées ne peuvent pas envoyer la même commande (testé).          |
+| Réponse incertaine → `NEEDS_CHECK`, jamais de renvoi automatique                                                          | Un doublon de commande fournisseur coûte plus cher qu'un traitement manuel.           |
+| Jetons d'API stockés chiffrés (AES-256-GCM, `SECRETS_ENCRYPTION_KEY`) et renouvelés automatiquement                       | Les jetons sont des secrets ; ils tournent (AliExpress, CJ 180 jours).                |
+| Coûts CJ en USD convertis avec un taux saisi dans l'admin                                                                 | Pas de taux codé en dur ni de service de change externe.                              |
+| AliExpress : `try_to_pay` (paiement auto avec le moyen enregistré), désactivable                                          | Équivalent DSers ; sinon commande « à payer » signalée par email et dans l'admin.     |
+| CJ hors production : `isSandbox=1`                                                                                        | Tests de bout en bout sans débit réel.                                                |

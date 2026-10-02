@@ -36,6 +36,8 @@ const serverEnvSchema = z.object({
   IP_HASH_SECRET: service,
   // Clé de signature du cookie panier.
   CART_COOKIE_SECRET: service,
+  // Clé AES-256 (32 octets en base64) pour chiffrer en base les jetons d'API fournisseur.
+  SECRETS_ENCRYPTION_KEY: service,
 
   STRIPE_SECRET_KEY: service,
   STRIPE_WEBHOOK_SECRET: service,
@@ -49,6 +51,8 @@ const serverEnvSchema = z.object({
   ALIEXPRESS_APP_KEY: z.string().optional(),
   ALIEXPRESS_APP_SECRET: z.string().optional(),
   ALIEXPRESS_ACCESS_TOKEN: z.string().optional(),
+  // Jeton de renouvellement initial ; ensuite les jetons sont renouvelés et stockés chiffrés en base.
+  ALIEXPRESS_REFRESH_TOKEN: z.string().optional(),
   CJ_API_KEY: z.string().optional(),
 
   UPSTASH_REDIS_REST_URL: isProduction ? z.url() : z.url().optional(),

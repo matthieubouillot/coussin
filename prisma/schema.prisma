@@ -35,6 +35,10 @@ model ShopSettings {
   vatFranchiseThresholdCents Int?
   thresholdAlertRatioBps     Int      @default(8000)
   invoicePrefix              String   @default("BTQ")
+  /// Taux de conversion saisi par l'admin : euros pour 1 USD, en millionièmes (ex. 920000 = 0,92 €).
+  usdToEurMicros             Int?
+  /// AliExpress : tenter le paiement automatique avec le moyen enregistré sur le compte (try_to_pay).
+  aliexpressAutoPay          Boolean  @default(true)
   cgvVersion                 String
   updatedAt                  DateTime @updatedAt
 }
@@ -143,6 +147,10 @@ model SupplierOffer {
   deliveryDaysMin   Int
   /// Valeur qui alimente le délai affiché au client : jamais plus optimiste que le fournisseur.
   deliveryDaysMax   Int
+  /// Devise des coûts renvoyés par le fournisseur (CJ facture en USD) ; les coûts stockés ici sont toujours en EUR.
+  currency          String                @default("EUR")
+  /// Mode d'expédition demandé au fournisseur (AliExpress logistics_service_name, CJ logisticName).
+  shippingMethod    String?
   lastKnownStock    Int?
   lastSyncedAt      DateTime?
   lastSyncError     String?
@@ -360,6 +368,10 @@ model OrderNote {
 enum SupplierOrderStatus {
   QUEUED
   PLACING
+  /// Résultat incertain (délai dépassé…) : jamais réessayé automatiquement, à vérifier chez le fournisseur.
+  NEEDS_CHECK
+  /// À passer à la main par l'admin (adaptateur manuel ou API non configurée).
+  MANUAL_ACTION_REQUIRED
   AWAITING_SUPPLIER_PAYMENT
   PLACED
   SHIPPED
@@ -382,6 +394,8 @@ model SupplierOrder {
   externalOrderId String?
   attempts        Int                 @default(0)
   nextAttemptAt   DateTime?
+  /// Début de la tentative en cours (statut PLACING) : une tentative bloquée trop longtemps est signalée.
+  claimedAt       DateTime?
   lastError       String?
   costCents       Int?
   trackingNumber  String?
@@ -396,6 +410,16 @@ model SupplierOrder {
   purchase        PurchaseRecord?
 
   @@index([status, lastPolledAt])
+}
+
+/// Jetons d'API fournisseur (renouvelés automatiquement), chiffrés au repos (AES-256-GCM).
+model SupplierCredential {
+  adapter          SupplierAdapterKind @id
+  accessTokenEnc   String
+  refreshTokenEnc  String?
+  accessExpiresAt  DateTime?
+  refreshExpiresAt DateTime?
+  updatedAt        DateTime            @updatedAt
 }
 
 /// Registre des achats (obligatoire pour l'activité de vente).

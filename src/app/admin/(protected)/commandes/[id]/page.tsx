@@ -15,7 +15,9 @@ import { ORDER_STATUS_LABELS } from "@/lib/order-status";
 import { requireAdmin } from "@/server/auth/require-admin";
 import { db } from "@/server/db";
 import { refundableCents } from "@/server/orders/refunds";
+import { SupplierOrderPanel } from "@/components/admin/SupplierOrderPanel";
 import { addNoteAction, cancelAction, refundAction, updateWithdrawalAction } from "./actions";
+import { relaunchAction } from "./supplier-actions";
 
 const dateTime = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "short",
@@ -43,7 +45,20 @@ export default async function OrderDetailPage({ params }: PageProps<"/admin/comm
       invoices: { orderBy: { issuedAt: "asc" } },
       refunds: { orderBy: { createdAt: "asc" } },
       withdrawals: { orderBy: { createdAt: "asc" } },
-      supplierOrders: true,
+      supplierOrders: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          offer: {
+            select: {
+              supplierName: true,
+              externalUrl: true,
+              purchaseCostCents: true,
+              shippingCostCents: true,
+            },
+          },
+          items: { select: { quantity: true, variantLabel: true } },
+        },
+      },
       promoCode: { select: { code: true } },
     },
   });
@@ -153,20 +168,28 @@ export default async function OrderDetailPage({ params }: PageProps<"/admin/comm
         )}
       </Card>
 
-      {order.supplierOrders.length > 0 && (
-        <Card title="Commandes fournisseur">
-          <ul className="space-y-1 text-sm">
-            {order.supplierOrders.map((so) => (
-              <li key={so.id}>
-                {so.adapter} — {so.status} {so.externalOrderId && `— réf. ${so.externalOrderId}`}{" "}
-                {so.trackingNumber && `— suivi ${so.trackingNumber}`}{" "}
-                {so.lastError && <span className="text-red-700">— {so.lastError}</span>}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs text-stone-500">
-            Actions fournisseur (renvoi, saisie manuelle du suivi) : phase 5.
-          </p>
+      {order.status !== "PENDING_PAYMENT" && (
+        <Card title="Fournisseurs et colis">
+          {order.supplierOrders.length === 0 ? (
+            <p className="text-sm text-stone-500">Pas encore transmise au fournisseur.</p>
+          ) : (
+            <div className="space-y-3">
+              {order.supplierOrders.map((so) => (
+                <SupplierOrderPanel key={so.id} so={so} />
+              ))}
+            </div>
+          )}
+          {["PAID", "FULFILLMENT_ERROR", "SENT_TO_SUPPLIER"].includes(order.status) && (
+            <div className="mt-3">
+              <ActionForm
+                action={relaunchAction}
+                submitLabel="Relancer le traitement automatique"
+                submitClassName={secondaryButtonClass}
+              >
+                <input type="hidden" name="orderId" value={order.id} />
+              </ActionForm>
+            </div>
+          )}
         </Card>
       )}
 

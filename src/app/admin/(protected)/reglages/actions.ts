@@ -37,6 +37,17 @@ export async function saveSettingsAction(_prev: ActionState, formData: FormData)
         .trim()
         .toUpperCase()
         .regex(/^[A-Z]{2,6}$/, "Préfixe : 2 à 6 lettres"),
+      usdToEur: z
+        .string()
+        .trim()
+        .transform((v) => (v === "" ? null : v))
+        .pipe(
+          z
+            .string()
+            .regex(/^[01][.,]\d{1,6}$/, "Taux USD → EUR invalide (ex. 0,92)")
+            .transform((v) => Math.round(Number(v.replace(",", ".")) * 1_000_000))
+            .nullable(),
+        ),
       cgvVersion: z
         .string()
         .trim()
@@ -89,6 +100,8 @@ export async function saveSettingsAction(_prev: ActionState, formData: FormData)
     vatFranchiseThresholdCents: d.vatThreshold,
     invoicePrefix: d.invoicePrefix,
     cgvVersion: d.cgvVersion,
+    usdToEurMicros: d.usdToEur,
+    aliexpressAutoPay: checkbox(formData, "aliexpressAutoPay"),
   };
   await db.shopSettings.upsert({ where: { id: "singleton" }, create: data, update: data });
   await audit("settings.update", {

@@ -147,6 +147,32 @@ export default async function SettingsPage() {
           </Grid>
         </Card>
 
+        <Card title="Fournisseurs">
+          <Grid>
+            <Field
+              label="Taux USD → EUR (€ pour 1 $)"
+              hint="Pour convertir les prix CJ (en dollars). À mettre à jour de temps en temps."
+            >
+              <input
+                name="usdToEur"
+                defaultValue={
+                  row?.usdToEurMicros ? String(row.usdToEurMicros / 1_000_000).replace(".", ",") : ""
+                }
+                className={inputClass}
+              />
+            </Field>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="aliexpressAutoPay"
+                defaultChecked={row?.aliexpressAutoPay ?? true}
+              />{" "}
+              AliExpress : tenter le paiement automatique avec le moyen enregistré sur le compte (sinon :
+              commande à payer à la main, signalée par email)
+            </label>
+          </Grid>
+        </Card>
+
         <Card title="Seuils et alertes">
           <Grid>
             <Field

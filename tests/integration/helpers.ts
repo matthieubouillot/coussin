@@ -173,3 +173,79 @@ export async function createPaidOrder(post: (req: Request) => Promise<Response>)
   if (response.status !== 200) throw new Error(`Webhook en échec : ${response.status}`);
   return order;
 }
+
+/** Fournisseurs simulés, pilotés test par test (seul l'appel réseau est remplacé). */
+export function makeFakeAdapter(kind: "ALIEXPRESS" | "CJ" | "MANUAL") {
+  return {
+    kind,
+    getProduct: vi.fn(async () => ({ title: "Coussin", variants: [] })),
+    getStockAndPrice: vi.fn(async () => ({
+      stock: 50 as number | null,
+      unitCost: 579 as number | null,
+      currency: "EUR" as "EUR" | "USD",
+    })),
+    placeOrder: vi.fn(async (req: { reference: string }) => ({
+      externalOrderId: `${kind}-${req.reference.slice(-6)}`,
+      payment: "PAID" as "PAID" | "AWAITING_PAYMENT" | "MANUAL",
+      totalCostCents: 779 as number | null,
+    })),
+    getOrderStatus: vi.fn(async () => "PROCESSING" as string),
+    getTracking: vi.fn(
+      async () =>
+        null as null | {
+          trackingNumber: string;
+          carrier: string | null;
+          trackingUrl: string | null;
+          delivered: boolean;
+        },
+    ),
+    cancelOrder: vi.fn(async () => undefined),
+  };
+}
+
+export const fakeAdapters = {
+  ALIEXPRESS: makeFakeAdapter("ALIEXPRESS"),
+  CJ: makeFakeAdapter("CJ"),
+  MANUAL: makeFakeAdapter("MANUAL"),
+};
+
+export function resetFakeAdapters() {
+  for (const kind of ["ALIEXPRESS", "CJ", "MANUAL"] as const)
+    Object.assign(fakeAdapters[kind], makeFakeAdapter(kind));
+}
+
+/** Ajoute des offres fournisseur à la variante de la commande (priorité dans l'ordre donné). */
+export async function addOffers(
+  orderId: string,
+  offers: { adapter: "ALIEXPRESS" | "CJ" | "MANUAL"; deliveryDaysMax?: number }[],
+) {
+  const item = await db.orderItem.findFirstOrThrow({ where: { orderId } });
+  await db.order.update({
+    where: { id: orderId },
+    data: { estimatedDeliveryMax: new Date(Date.now() + 12 * 86_400_000) },
+  });
+  for (const [index, offer] of offers.entries()) {
+    await db.supplierOffer.create({
+      data: {
+        variantId: item.variantId,
+        adapter: offer.adapter,
+        supplierName: `Fournisseur ${index + 1}`,
+        externalProductId: "1005010155230759",
+        externalSkuId: "14:193",
+        priority: index + 1,
+        purchaseCostCents: 579,
+        shippingCostCents: 200,
+        deliveryDaysMin: 5,
+        deliveryDaysMax: offer.deliveryDaysMax ?? 10,
+      },
+    });
+  }
+}
+
+/** Rend immédiatement dues les tentatives programmées (simule le passage du temps). */
+export async function makeRetriesDue(orderId: string) {
+  await db.supplierOrder.updateMany({
+    where: { orderId, status: "QUEUED" },
+    data: { nextAttemptAt: new Date(Date.now() - 1000) },
+  });
+}
