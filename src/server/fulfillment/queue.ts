@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { Client } from "@upstash/qstash";
 import { env } from "@/server/env";
 import { fulfillOrder } from "@/server/fulfillment/dispatch";
+import { safeErrorMessage } from "@/lib/logging/safe-error";
 
 /**
  * Déclenche (ou programme) le traitement fournisseur d'une commande.
@@ -30,7 +31,7 @@ export async function scheduleFulfillment(orderId: string, at: Date | null = nul
         try {
           await fulfillOrder(orderId);
         } catch (error) {
-          console.error("Traitement fournisseur en échec", orderId, (error as Error).message);
+          console.error("Traitement fournisseur en échec", orderId, safeErrorMessage(error));
         }
       });
     } catch {

@@ -6,6 +6,7 @@ import { issueInvoiceInTx } from "@/server/invoices/issue-invoice";
 import { finalizePaidOrder } from "@/server/orders/finalize-paid-order";
 import { transitionOrder } from "@/server/orders/state-machine";
 import { notifyAdmin } from "@/server/email/admin-alerts";
+import { recordExternalStripeRefund } from "@/server/orders/refunds";
 
 /**
  * Traitement des événements Stripe (déjà authentifiés par la signature dans la route).
@@ -20,9 +21,16 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       return handleCheckoutCompleted(event, event.data.object);
     case "checkout.session.expired":
       return handleCheckoutExpired(event, event.data.object);
+    case "refund.created":
+      await recordExternalStripeRefund(event.data.object);
+      return;
     case "refund.updated":
     case "refund.failed":
-      return handleRefundUpdate(event.data.object);
+      await handleRefundUpdate(event.data.object);
+      if (event.data.object.status === "succeeded") await recordExternalStripeRefund(event.data.object);
+      return;
+    case "charge.dispute.created":
+      return handleDisputeCreated(event.data.object);
     default:
       // Les autres événements (remboursements, litiges) sont traités dans les phases suivantes.
       return;
@@ -109,10 +117,28 @@ async function handleCheckoutCompleted(event: Stripe.Event, session: Stripe.Chec
       });
 
       if (order.promoCodeId) {
-        await tx.promoCode.update({
-          where: { id: order.promoCodeId },
+        // Incrément atomique, borné par la limite d'utilisations. Deux paiements simultanés avec la
+        // dernière utilisation d'un code : le paiement est encaissé et honoré, mais signalé.
+        const used = await tx.promoCode.updateMany({
+          where: {
+            id: order.promoCodeId,
+            OR: [{ maxUses: null }, { usedCount: { lt: tx.promoCode.fields.maxUses } }],
+          },
           data: { usedCount: { increment: 1 } },
         });
+        if (used.count === 0) {
+          await tx.promoCode.update({
+            where: { id: order.promoCodeId },
+            data: { usedCount: { increment: 1 } },
+          });
+          await tx.orderNote.create({
+            data: {
+              orderId: order.id,
+              authorId: "system",
+              body: "Code promo utilisé au-delà de sa limite (paiements simultanés) : honoré.",
+            },
+          });
+        }
       }
 
       // L'argent est encaissé : la commande est payée quoi qu'il arrive. Mais un écart de montant
@@ -192,4 +218,34 @@ async function handleRefundUpdate(stripeRefund: Stripe.Refund): Promise<void> {
       `L'avoir ${refund.creditNote?.number ?? "—"} a été émis : rembourser le client par un autre moyen (virement) et le noter dans la commande.`,
     ],
   );
+}
+
+/**
+ * Litige bancaire (chargeback) : la somme est bloquée et la banque attend des preuves avant une date
+ * limite. Alerte immédiate et note sur la commande.
+ */
+async function handleDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
+  const paymentIntentId =
+    typeof dispute.payment_intent === "string" ? dispute.payment_intent : dispute.payment_intent?.id;
+  const order = paymentIntentId
+    ? await db.order.findUnique({ where: { stripePaymentIntentId: paymentIntentId } })
+    : null;
+  const dueBy = dispute.evidence_details?.due_by
+    ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeZone: "Europe/Paris" }).format(
+        new Date(dispute.evidence_details.due_by * 1000),
+      )
+    : "voir Stripe";
+  if (order) {
+    await db.orderNote.create({
+      data: {
+        orderId: order.id,
+        authorId: "system",
+        body: `LITIGE BANCAIRE ouvert (${dispute.reason}) : ${(dispute.amount / 100).toFixed(2)} €. Preuves à fournir avant le ${dueBy}.`,
+      },
+    });
+  }
+  await notifyAdmin(`dispute:${dispute.id}`, `Litige bancaire${order ? ` — commande ${order.number}` : ""}`, [
+    `Motif : ${dispute.reason}. Montant contesté : ${(dispute.amount / 100).toFixed(2)} €.`,
+    `Répondre dans le dashboard Stripe (preuve de livraison, suivi, échanges) avant le ${dueBy}.`,
+  ]);
 }

@@ -43,6 +43,10 @@ const serverEnvSchema = z.object({
   STRIPE_WEBHOOK_SECRET: service,
   // Verrou du mode live : tant qu'il ne vaut pas "true", une clé sk_live_ est refusée (phase 8).
   STRIPE_LIVE_ENABLED: z.enum(["true", "false"]).optional(),
+  // Tests de charge / E2E uniquement : faux serveur Stripe local. Interdit en production.
+  STRIPE_API_BASE: isProduction
+    ? z.undefined({ error: "STRIPE_API_BASE interdit en production" })
+    : z.url().optional(),
 
   RESEND_API_KEY: service,
   EMAIL_FROM: service,
@@ -65,6 +69,13 @@ const serverEnvSchema = z.object({
   TURNSTILE_SECRET_KEY: service,
 
   BLOB_READ_WRITE_TOKEN: service,
+  // Hôte public de l'espace Blob (ex. abcd1234.public.blob.vercel-storage.com) : seul hôte d'images autorisé.
+  BLOB_PUBLIC_HOSTNAME: isProduction
+    ? z.string().regex(/^[a-z0-9]+\.public\.blob\.vercel-storage\.com$/)
+    : z
+        .string()
+        .regex(/^[a-z0-9]+\.public\.blob\.vercel-storage\.com$/)
+        .optional(),
 
   TIKTOK_PIXEL_ID: z
     .string()

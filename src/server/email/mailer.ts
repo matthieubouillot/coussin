@@ -76,7 +76,8 @@ async function deliver(params: SendEmailParams): Promise<string | null> {
     {
       from: EMAIL_FROM,
       to: params.to,
-      subject: params.subject,
+      // Un retour à la ligne venant d'une saisie client n'a rien à faire dans un en-tête.
+      subject: params.subject.replace(/[\r\n\t]+/g, " ").slice(0, 200),
       react: params.react,
       attachments: params.attachments,
     },

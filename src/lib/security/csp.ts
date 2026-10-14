@@ -22,11 +22,14 @@ export function buildCsp({
   isDev,
   admin = false,
   ads = false,
+  blobHost = "*.public.blob.vercel-storage.com",
 }: {
   nonce: string;
   isDev: boolean;
   admin?: boolean;
   ads?: boolean;
+  /** Hôte public de notre espace Vercel Blob (photos et vidéos produit). */
+  blobHost?: string;
 }): string {
   const directives: Directives = {
     "default-src": ["'self'"],
@@ -40,14 +43,8 @@ export function buildCsp({
     // et impossibles à couvrir par un nonce. Les balises <style> restent soumises au nonce.
     "style-src-attr": ["'unsafe-inline'"],
     // Vercel Blob héberge les photos et vidéos produit (phase 2).
-    "img-src": [
-      "'self'",
-      "blob:",
-      "data:",
-      "https://*.public.blob.vercel-storage.com",
-      ...(ads ? ADS_IMG : []),
-    ],
-    "media-src": ["'self'", "https://*.public.blob.vercel-storage.com"],
+    "img-src": ["'self'", "blob:", "data:", `https://${blobHost}`, ...(ads ? ADS_IMG : [])],
+    "media-src": ["'self'", `https://${blobHost}`],
     "font-src": ["'self'"],
     // Sentry passe par un tunnel same-origin (/monitoring) : pas besoin d'autoriser son domaine.
     "connect-src": [

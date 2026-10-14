@@ -24,8 +24,11 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@react-pdf/renderer"],
   reactStrictMode: true,
   images: {
-    // Médias produit hébergés sur Vercel Blob (uploads admin) ; aucun autre domaine distant.
-    remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" }],
+    // Médias produit hébergés sur NOTRE espace Vercel Blob uniquement : un joker laisserait n'importe
+    // quel site utiliser notre optimiseur d'images (et notre facture). Joker toléré en dev seulement.
+    remotePatterns: [
+      { protocol: "https", hostname: process.env.BLOB_PUBLIC_HOSTNAME ?? "*.public.blob.vercel-storage.com" },
+    ],
     formats: ["image/avif", "image/webp"],
   },
   async headers() {

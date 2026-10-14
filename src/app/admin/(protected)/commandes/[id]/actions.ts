@@ -6,6 +6,7 @@ import { audit } from "@/server/audit/audit";
 import { requireAdmin } from "@/server/auth/require-admin";
 import { db } from "@/server/db";
 import { cancelOrder, RefundError, refundOrder } from "@/server/orders/refunds";
+import { safeErrorMessage } from "@/lib/logging/safe-error";
 
 export type ActionState = { ok: boolean; message: string } | null;
 
@@ -18,7 +19,7 @@ const euros = z
 
 function failure(error: unknown): ActionState {
   if (error instanceof RefundError) return { ok: false, message: error.message };
-  console.error("Action commande en échec", error instanceof Error ? error.message : error);
+  console.error("Action commande en échec", safeErrorMessage(error));
   return {
     ok: false,
     message: "L'opération a échoué. Rien n'a été remboursé deux fois ; réessayez ou vérifiez dans Stripe.",

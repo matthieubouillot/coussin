@@ -20,4 +20,30 @@ Voir [`SECURITY.md`](SECURITY.md).
 
 ## Durées appliquées automatiquement
 
-Un cron de rétention (phase 5/7) purge ou anonymise selon les durées ci-dessus. Les factures ne sont jamais supprimées avant 10 ans ; une demande d'effacement anonymise le client sans toucher aux pièces comptables.
+Purge quotidienne (`src/server/gdpr/retention.ts`, appelée par `/api/cron/daily`), testée dans `tests/integration/retention.test.ts` :
+
+| Donnée                                                    | Durée                     | Action                                      |
+| --------------------------------------------------------- | ------------------------- | ------------------------------------------- |
+| Clients sans activité (ni commande ni contact)            | 3 ans                     | Anonymisation (factures intactes)           |
+| Messages du formulaire de contact                         | 1 an                      | Suppression                                 |
+| Journal d'audit admin                                     | 1 an                      | Suppression                                 |
+| Preuves de consentement cookies                           | 6 mois                    | Suppression                                 |
+| Événements de webhook traités (journal technique)         | 90 jours                  | Suppression                                 |
+| Invitations à laisser un avis expirées                    | 30 jours après expiration | Suppression                                 |
+| Sessions admin et jetons de vérification expirés          | à expiration              | Suppression                                 |
+| Contexte publicitaire d'un panier abandonné               | 1 jour                    | Effacement                                  |
+| Factures, avoirs, livre des recettes, registre des achats | 10 ans                    | **Jamais supprimés** (obligation comptable) |
+
+Une demande d'effacement d'un client se traite dans l'admin (Clients → Anonymiser) ; une demande d'accès ou de portabilité par l'export JSON. Délai de réponse : 1 mois.
+
+## Vérification RGPD (14 octobre 2026)
+
+| Exigence                      | État                                                                                                                                      |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Données et traitements en UE  | Base Neon et fonctions Vercel à Francfort ; sous-traitants hors UE listés avec leurs garanties (politique de confidentialité)             |
+| Minimisation                  | Seules les données utiles à la commande et à la livraison ; IP uniquement hachée ; contexte publicitaire effacé après usage               |
+| Bandeau cookies conforme CNIL | Refuser aussi simple qu'accepter, choix granulaire, aucun traceur avant consentement (testé), choix mémorisé 6 mois, lien sur chaque page |
+| Durées de conservation        | Appliquées automatiquement (ci-dessus)                                                                                                    |
+| Droits des personnes          | Export JSON et anonymisation dans l'admin                                                                                                 |
+| Registre des traitements      | Ce document                                                                                                                               |
+| Sécurité                      | `SECURITY.md`, `SECURITY_REVIEW.md`                                                                                                       |

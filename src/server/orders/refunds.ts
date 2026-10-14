@@ -104,6 +104,33 @@ export async function refundOrder(params: {
     throw new RefundError("Stripe a refusé le remboursement.");
   }
 
+  const creditNoteNumber = await completeRefund({
+    refundId: refund.id,
+    stripeRefundId: stripeRefund.id,
+    amountCents: params.amountCents,
+    reason: params.reason,
+    actor: { type: "ADMIN", id: params.adminId },
+  });
+  return { refundId: refund.id, creditNoteNumber };
+}
+
+/**
+ * Fin commune de tout remboursement effectif (admin ou dashboard Stripe) : avoir sans trou de
+ * numérotation, statuts de la commande, rétractations soldées, audit, email au client avec l'avoir.
+ */
+async function completeRefund(params: {
+  refundId: string;
+  stripeRefundId: string;
+  amountCents: number;
+  reason: string;
+  actor: { type: "ADMIN" | "WEBHOOK"; id: string };
+}): Promise<string> {
+  const refund = await db.refund.findUniqueOrThrow({
+    where: { id: params.refundId },
+    include: { order: true },
+  });
+  const order = refund.order;
+
   const creditNoteId = await db.$transaction(async (tx) => {
     const noteId = await issueCreditNoteInTx(tx, {
       orderId: order.id,
@@ -114,7 +141,7 @@ export async function refundOrder(params: {
       where: { id: refund.id },
       data: {
         status: "SUCCEEDED",
-        stripeRefundId: stripeRefund.id,
+        stripeRefundId: params.stripeRefundId,
         refundedAt: new Date(),
         creditNoteId: noteId,
       },
@@ -127,7 +154,7 @@ export async function refundOrder(params: {
         })
       )._sum.amountCents ?? 0;
     const full = totalRefunded >= order.totalCents;
-    await moveToRefundedState(tx, order.id, full, params.adminId, params.reason);
+    await moveToRefundedState(tx, order.id, full, params.actor, params.reason);
     if (full) {
       await tx.withdrawalRequest.updateMany({
         where: { orderId: order.id, status: { in: ["RECEIVED", "ACCEPTED", "RETURN_RECEIVED"] } },
@@ -142,10 +169,10 @@ export async function refundOrder(params: {
     select: { number: true },
   });
   await audit("order.refund", {
-    actorId: params.adminId,
+    actorId: params.actor.type === "ADMIN" ? params.actor.id : null,
     targetType: "order",
     targetId: order.id,
-    metadata: { amountCents: params.amountCents, creditNote: creditNote.number },
+    metadata: { amountCents: params.amountCents, creditNote: creditNote.number, source: params.actor.type },
   });
 
   const pdf = await ensureInvoicePdf(creditNoteId);
@@ -166,7 +193,56 @@ export async function refundOrder(params: {
       creditNoteNumber: creditNote.number,
     }),
   });
-  return { refundId: refund.id, creditNoteNumber: creditNote.number };
+  return creditNote.number;
+}
+
+/**
+ * Remboursement fait directement dans le dashboard Stripe (hors admin) : enregistré comme s'il
+ * venait de l'admin, pour que l'avoir et le livre des recettes restent exacts. Idempotent.
+ */
+export async function recordExternalStripeRefund(stripeRefund: {
+  id: string;
+  amount: number;
+  status: string | null;
+  payment_intent: string | { id: string } | null;
+  metadata?: Record<string, string> | null;
+}): Promise<"recorded" | "ignored"> {
+  // Remboursement lancé depuis l'admin : déjà traité par refundOrder.
+  if (stripeRefund.metadata?.refundId) return "ignored";
+  if (stripeRefund.status !== "succeeded" && stripeRefund.status !== "pending") return "ignored";
+  if (await db.refund.findUnique({ where: { stripeRefundId: stripeRefund.id } })) return "ignored";
+
+  const paymentIntentId =
+    typeof stripeRefund.payment_intent === "string"
+      ? stripeRefund.payment_intent
+      : stripeRefund.payment_intent?.id;
+  if (!paymentIntentId) return "ignored";
+  const order = await db.order.findUnique({ where: { stripePaymentIntentId: paymentIntentId } });
+  if (!order) return "ignored";
+
+  let refund;
+  try {
+    refund = await db.refund.create({
+      data: {
+        orderId: order.id,
+        amountCents: stripeRefund.amount,
+        reason: "Remboursement effectué depuis Stripe",
+        stripeRefundId: stripeRefund.id,
+      },
+    });
+  } catch (error) {
+    // Événement rejoué en parallèle : déjà enregistré.
+    if (typeof error === "object" && error && "code" in error && error.code === "P2002") return "ignored";
+    throw error;
+  }
+  await completeRefund({
+    refundId: refund.id,
+    stripeRefundId: stripeRefund.id,
+    amountCents: stripeRefund.amount,
+    reason: "Remboursement effectué depuis Stripe",
+    actor: { type: "WEBHOOK", id: stripeRefund.id },
+  });
+  return "recorded";
 }
 
 /** Enchaîne les transitions autorisées vers REFUNDED ou PARTIALLY_REFUNDED. */
@@ -174,11 +250,11 @@ async function moveToRefundedState(
   tx: Prisma.TransactionClient,
   orderId: string,
   full: boolean,
-  adminId: string,
+  actor: { type: "ADMIN" | "WEBHOOK"; id: string },
   reason: string,
 ) {
   const { status } = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
-  const base = { orderId, actorType: "ADMIN" as const, actorId: adminId, reason };
+  const base = { orderId, actorType: actor.type, actorId: actor.id, reason };
 
   if (status === "CANCELLED") {
     if (full) await transitionOrder(tx, { ...base, to: "REFUNDED" });

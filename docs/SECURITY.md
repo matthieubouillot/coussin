@@ -1,6 +1,6 @@
 # Sécurité
 
-> Document vivant : chaque phase ajoute ce qu'elle met en place. La revue complète a lieu en phase 7.
+> Document vivant : chaque phase ajoute ce qu'elle met en place. Revue complète avant production : [`SECURITY_REVIEW.md`](SECURITY_REVIEW.md).
 
 ## Mesures en place (phase 1 — socle)
 

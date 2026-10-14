@@ -14,6 +14,7 @@ import {
   SupplierOperationError,
   switchToManual,
 } from "@/server/fulfillment/admin-operations";
+import { safeErrorMessage } from "@/lib/logging/safe-error";
 
 export type ActionState = { ok: boolean; message: string } | null;
 
@@ -26,7 +27,7 @@ async function run(fn: () => Promise<void>, success: string): Promise<ActionStat
     return { ok: true, message: success };
   } catch (error) {
     if (error instanceof SupplierOperationError) return { ok: false, message: error.message };
-    console.error("Action fournisseur en échec", (error as Error).message);
+    console.error("Action fournisseur en échec", safeErrorMessage(error));
     return { ok: false, message: "L'opération a échoué." };
   }
 }

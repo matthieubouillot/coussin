@@ -14,6 +14,7 @@ export function proxy(request: NextRequest) {
     isDev: process.env.NODE_ENV === "development",
     admin: routing.kind === "rewrite",
     // Sans consentement publicité, la CSP bloque en plus tout appel vers les régies.
+    blobHost: process.env.BLOB_PUBLIC_HOSTNAME,
     ads: hasConsent(parseConsentCookie(request.cookies.get(CONSENT_COOKIE_NAME)?.value), "ads"),
   });
 

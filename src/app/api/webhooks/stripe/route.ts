@@ -2,6 +2,7 @@ import type Stripe from "stripe";
 import { env } from "@/server/env";
 import { handleStripeEvent } from "@/server/stripe/handle-event";
 import { stripe } from "@/server/stripe/stripe";
+import { safeErrorMessage } from "@/lib/logging/safe-error";
 
 // Webhook Stripe : seule source de vérité pour valider un paiement.
 // Signature vérifiée sur le corps BRUT (le moindre reformatage la rendrait invalide).
@@ -22,12 +23,7 @@ export async function POST(request: Request): Promise<Response> {
     await handleStripeEvent(event);
   } catch (error) {
     // 500 : Stripe réessaiera (jusqu'à 3 jours) ; le traitement est idempotent.
-    console.error(
-      "Webhook Stripe en échec",
-      event.id,
-      event.type,
-      error instanceof Error ? error.message || error.name : error,
-    );
+    console.error("Webhook Stripe en échec", event.id, event.type, safeErrorMessage(error));
     return new Response("Erreur de traitement", { status: 500 });
   }
   return Response.json({ received: true });

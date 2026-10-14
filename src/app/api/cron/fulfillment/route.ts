@@ -3,6 +3,7 @@ import { notifyAdmin } from "@/server/email/admin-alerts";
 import { fulfillOrder } from "@/server/fulfillment/dispatch";
 import { STALE_PLACING_MS } from "@/server/fulfillment/policy";
 import { isAuthorizedCron } from "@/server/security/cron-auth";
+import { safeErrorMessage } from "@/lib/logging/safe-error";
 
 /**
  * Rattrapage (toutes les 10 min) : commandes payées jamais transmises, réessais arrivés à échéance,
@@ -50,7 +51,7 @@ export async function GET(request: Request): Promise<Response> {
     try {
       await fulfillOrder(order.id);
     } catch (error) {
-      console.error("Rattrapage fulfillment en échec", order.id, (error as Error).message);
+      console.error("Rattrapage fulfillment en échec", order.id, safeErrorMessage(error));
     }
   }
   return Response.json({ stale: stale.length, processed: orders.length });

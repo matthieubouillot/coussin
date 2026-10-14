@@ -20,7 +20,16 @@ export function stripe(): Stripe {
       "Clé Stripe live refusée : le mode live doit être activé explicitement (STRIPE_LIVE_ENABLED)",
     );
   }
-  client ??= new Stripe(key, { apiVersion: STRIPE_API_VERSION, maxNetworkRetries: 2, timeout: 20_000 });
+  const mock = env().STRIPE_API_BASE ? new URL(env().STRIPE_API_BASE!) : null;
+  client ??= new Stripe(key, {
+    apiVersion: STRIPE_API_VERSION,
+    maxNetworkRetries: 2,
+    timeout: 20_000,
+    // Faux serveur Stripe local (tests de charge) ; refusé en production par la validation de l'env.
+    ...(mock
+      ? { host: mock.hostname, port: mock.port, protocol: mock.protocol.replace(":", "") as "http" | "https" }
+      : {}),
+  });
   return client;
 }
 

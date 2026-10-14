@@ -46,7 +46,7 @@
 
 - [ ] Me fournir (dans `.env`, jamais par chat ni dans Git) les **clés de test Stripe** et, si possible, une **clé Resend** de test.
 - [ ] Dans le dashboard Stripe : activer **Apple Pay** et **Google Pay** (moyens de paiement), puis plus tard vérifier le domaine pour Apple Pay.
-- [ ] En production : créer l'endpoint webhook `https://<domaine>/api/webhooks/stripe` avec les événements `checkout.session.completed` et `checkout.session.expired`, **version d'API `2026-09-30.endive`**.
+- [ ] En production : créer l'endpoint webhook `https://<domaine>/api/webhooks/stripe`, **version d'API `2026-09-30.endive`**, avec les événements : `checkout.session.completed`, `checkout.session.expired`, `refund.created`, `refund.updated`, `refund.failed`, `charge.dispute.created`.
 - [ ] Resend : vérifier le domaine d'envoi (SPF, DKIM, DMARC) et choisir l'adresse expéditrice.
 
 ## Fournisseurs (fulfillment automatique)
@@ -75,7 +75,11 @@
 
 ## Avant la mise en production (phase 8)
 
+- [ ] Renseigner `BLOB_PUBLIC_HOSTNAME` (hôte de l'espace Vercel Blob, visible dans l'URL d'une photo envoyée) : obligatoire en production.
+- [ ] Faire un test manuel d'accessibilité : parcours d'achat entier **au clavier seul**, puis avec VoiceOver (iPhone ou Mac).
+- [ ] Refaire l'exercice de restauration sur Neon (restauration d'une branche à un instant donné, voir `docs/RESTAURATION.md`).
+- [ ] Ranger `SECRETS_ENCRYPTION_KEY`, `AUTH_SECRET` et les codes de secours 2FA dans un gestionnaire de mots de passe.
+
 - [ ] Créer le dépôt GitHub privé (fait par Claude avec ton accord) et y brancher Vercel
 - [ ] Renseigner toutes les variables de `.env.example` dans Vercel (Production + Preview)
 - [ ] Créer ton compte admin de production avec `pnpm admin:create` (sur la base de production) et activer la 2FA.
-- [ ] Ajouter l'événement webhook Stripe `refund.updated` (alerte si un remboursement échoue après coup).

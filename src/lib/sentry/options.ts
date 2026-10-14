@@ -6,12 +6,20 @@ import type { BrowserOptions, ErrorEvent } from "@sentry/nextjs";
  * On coupe la collecte à la source (dataCollection) puis on masque ce qui passerait quand même (beforeSend).
  */
 
-const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
-// Numéros de téléphone français (+33 / 0X) avec séparateurs éventuels.
-const PHONE_RE = /(?:\+33\s?|0)[1-9](?:[\s.-]?\d{2}){4}/g;
+import { scrubText } from "@/lib/logging/safe-error";
 
-export function scrubText(text: string): string {
-  return text.replace(EMAIL_RE, "[email]").replace(PHONE_RE, "[téléphone]");
+export { scrubText };
+
+/** Message Prisma : seule la cause (dernière ligne) est conservée, sans les arguments de la requête. */
+function scrubPrisma(text: string): string {
+  if (!/invocation/.test(text)) return text;
+  return (
+    text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .at(-1) ?? ""
+  );
 }
 
 export function scrubEvent(event: ErrorEvent): ErrorEvent {
@@ -22,9 +30,9 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
     delete event.request.query_string;
     if (event.request.url) event.request.url = scrubText(event.request.url);
   }
-  if (event.message) event.message = scrubText(event.message);
+  if (event.message) event.message = scrubText(scrubPrisma(event.message));
   for (const exception of event.exception?.values ?? []) {
-    if (exception.value) exception.value = scrubText(exception.value);
+    if (exception.value) exception.value = scrubText(scrubPrisma(exception.value));
   }
   for (const breadcrumb of event.breadcrumbs ?? []) {
     if (breadcrumb.message) breadcrumb.message = scrubText(breadcrumb.message);

@@ -10,6 +10,7 @@ import { marketingContextFromRequest } from "@/server/marketing/context";
 import { env } from "@/server/env";
 import { checkRateLimit } from "@/server/security/ratelimit";
 import { isStripeConfigured } from "@/server/stripe/stripe";
+import { safeErrorMessage } from "@/lib/logging/safe-error";
 
 export type CheckoutActionState = { message: string } | null;
 
@@ -35,10 +36,7 @@ export async function checkoutAction(
     if (!result.ok) return { message: result.message };
     url = result.url;
   } catch (error) {
-    console.error(
-      "Création de la session de paiement impossible",
-      error instanceof Error ? error.message : error,
-    );
+    console.error("Création de la session de paiement impossible", safeErrorMessage(error));
     return { message: "Le paiement est momentanément indisponible. Réessayez dans un instant." };
   }
   // redirect() lève une exception de contrôle : il doit rester hors du try/catch.

@@ -272,7 +272,10 @@ export async function registerMediaAction(input: {
       url: z
         .url({ protocol: /^https$/ })
         .refine(
-          (u) => new URL(u).hostname.endsWith(".public.blob.vercel-storage.com"),
+          (u) =>
+            process.env.BLOB_PUBLIC_HOSTNAME
+              ? new URL(u).hostname === process.env.BLOB_PUBLIC_HOSTNAME
+              : new URL(u).hostname.endsWith(".public.blob.vercel-storage.com"),
           "URL de stockage inattendue",
         ),
       kind: z.enum(["IMAGE", "VIDEO"]),

@@ -15,6 +15,11 @@ const eslintConfig = defineConfig([
       "no-console": ["error", { allow: ["warn", "error"] }],
     },
   },
+  {
+    // Outils en ligne de commande (tests de charge, faux Stripe) : afficher des résultats est leur rôle.
+    files: ["scripts/**"],
+    rules: { "no-console": "off" },
+  },
   globalIgnores([
     ".next/**",
     "out/**",

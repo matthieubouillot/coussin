@@ -4,7 +4,8 @@ Boutique e-commerce « one-product » (dropshipping) : Next.js 16, Prisma 7 / Po
 
 - Cahier des charges : [`PROMPT_BOUTIQUE.md`](PROMPT_BOUTIQUE.md)
 - Cadrage et décisions : [`docs/PHASE0_CADRAGE.md`](docs/PHASE0_CADRAGE.md)
-- Architecture : [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · Sécurité : [`docs/SECURITY.md`](docs/SECURITY.md)
+- Architecture : [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · Sécurité : [`docs/SECURITY.md`](docs/SECURITY.md) et [revue avant production](docs/SECURITY_REVIEW.md)
+- RGPD : [`docs/RGPD.md`](docs/RGPD.md) · Sauvegardes : [`docs/RESTAURATION.md`](docs/RESTAURATION.md) · Performance et charge : [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md)
 - Ce qui reste à faire hors code : [`TODO_MATTHIEU.md`](TODO_MATTHIEU.md)
 
 ## Prérequis
